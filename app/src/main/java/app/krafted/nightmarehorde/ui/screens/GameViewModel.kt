@@ -6,6 +6,7 @@ import app.krafted.nightmarehorde.engine.core.Entity
 import app.krafted.nightmarehorde.engine.core.GameLoop
 import app.krafted.nightmarehorde.engine.core.components.SpriteComponent
 import app.krafted.nightmarehorde.engine.core.components.TransformComponent
+import app.krafted.nightmarehorde.engine.input.InputManager
 import app.krafted.nightmarehorde.engine.rendering.Camera
 import app.krafted.nightmarehorde.engine.rendering.SpriteRenderer
 import app.krafted.nightmarehorde.game.data.AssetManager
@@ -21,7 +22,8 @@ class GameViewModel @Inject constructor(
     private val gameLoop: GameLoop,
     val camera: Camera,
     val spriteRenderer: SpriteRenderer,
-    val assetManager: AssetManager
+    val assetManager: AssetManager,
+    val inputManager: InputManager
 ) : ViewModel() {
 
     private val _entities = MutableStateFlow<List<Entity>>(emptyList())
@@ -71,11 +73,27 @@ class GameViewModel @Inject constructor(
                 kotlinx.coroutines.delay(16) // roughly 60 FPS update for UI binding
             }
         }
+        
+        // Observe input for debugging (will be used by player movement in Phase B)
+        viewModelScope.launch {
+            inputManager.movementDirection.collect { direction ->
+                // Player movement will be implemented in Phase B
+                // For now, this just logs that input is being received
+            }
+        }
+        
+        viewModelScope.launch {
+            inputManager.doubleTapEvents.collect { position ->
+                // Turret menu will be implemented in Phase D
+                android.util.Log.d("GameViewModel", "Double-tap for turret menu at: $position")
+            }
+        }
     }
 
     fun stopGame() {
         isGameRunning = false
         gameLoop.stop()
         gameLoop.clear()
+        inputManager.reset()
     }
 }

@@ -8,11 +8,16 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import app.krafted.nightmarehorde.engine.input.GestureHandler
+import app.krafted.nightmarehorde.engine.input.VirtualJoystick
+import app.krafted.nightmarehorde.engine.input.detectGameGestures
 import app.krafted.nightmarehorde.engine.rendering.GameSurface
 
 /**
@@ -24,6 +29,12 @@ fun GameScreen(
     modifier: Modifier = Modifier
 ) {
     val entities by viewModel.entities.collectAsState()
+    val scope = rememberCoroutineScope()
+    
+    // Create gesture handler for tap/double-tap detection
+    val gestureHandler = remember(viewModel.inputManager, scope) {
+        GestureHandler(viewModel.inputManager, scope)
+    }
     
     // Lifecycle management
     LaunchedEffect(Unit) {
@@ -33,17 +44,18 @@ fun GameScreen(
     DisposableEffect(Unit) {
         onDispose {
             viewModel.stopGame()
+            gestureHandler.reset()
         }
     }
     
     Box(modifier = modifier.fillMaxSize()) {
-        // Game surface - renders the game world
-        // We use the basic overload since we have the list
+        // Game surface with gesture detection overlay
         GameSurface(
             entities = entities,
             camera = viewModel.camera,
             spriteRenderer = viewModel.spriteRenderer,
-            backgroundColor = Color(0xFF1a1a2e)
+            backgroundColor = Color(0xFF1a1a2e),
+            modifier = Modifier.detectGameGestures(gestureHandler, scope)
         )
         
         // HUD overlay (placeholder)
@@ -54,5 +66,13 @@ fun GameScreen(
         ) {
             // Health, ammo, wave info will go here
         }
+        
+        // Virtual Joystick - bottom left corner
+        VirtualJoystick(
+            inputManager = viewModel.inputManager,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(24.dp)
+        )
     }
 }

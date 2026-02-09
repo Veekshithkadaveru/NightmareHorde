@@ -144,8 +144,8 @@ todos:
 ### 🏗 Phase A: Core Engine
 - [x] **A1: Foundation Setup** <!-- id: foundation -->
 - [x] **A2: Rendering System** <!-- id: rendering -->
-- [ ] **A3: Physics & Collision** <!-- id: physics -->
-- [ ] **A4: Input System** <!-- id: input -->
+- [x] **A3: Physics & Collision** <!-- id: physics -->
+- [x] **A4: Input System** <!-- id: input -->
 
 ### 🎮 Phase B: Player & Combat
 - [ ] **B1: Player Entity** <!-- id: player -->
