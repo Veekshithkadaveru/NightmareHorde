@@ -9,7 +9,7 @@ import app.krafted.nightmarehorde.engine.core.components.VelocityComponent
  * System that applies velocity to entity positions.
  * Uses delta time for frame-rate independent movement.
  */
-class MovementSystem : GameSystem() {
+class MovementSystem : GameSystem(priority = 50) {
     
     /** Optional world bounds for clamping entity positions */
     var worldBounds: WorldBounds? = null

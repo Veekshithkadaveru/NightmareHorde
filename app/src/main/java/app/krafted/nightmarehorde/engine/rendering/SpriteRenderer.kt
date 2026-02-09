@@ -22,6 +22,14 @@ import javax.inject.Singleton
 class SpriteRenderer @Inject constructor(
     private val assetManager: AssetManager
 ) {
+    companion object {
+        /**
+         * Fallback size for frustum culling when sprite dimensions are unknown.
+         * This is a conservative estimate assuming most sprites are under 64 world units.
+         * Used only when SpriteComponent.width/height are not set (0).
+         */
+        private const val SIZE_FALLBACK_CULLING = 64f
+    }
     
     /**
      * Render all entities with sprites to the given DrawScope.
@@ -190,10 +198,9 @@ class SpriteRenderer @Inject constructor(
         // fillViewport sprites are always visible
         if (sprite.fillViewport) return true
         
-        // Use actual size if available, fallback to a reasonable default if 0 (though now we handle 0 above)
-        // But here we don't have the bitmap, so we use a safe default or 0
-        val width = if (sprite.width > 0) sprite.width else 64f // Approximation for culling
-        val height = if (sprite.height > 0) sprite.height else 64f
+        // Use actual size if available, fallback to conservative estimate for culling
+        val width = if (sprite.width > 0) sprite.width else SIZE_FALLBACK_CULLING
+        val height = if (sprite.height > 0) sprite.height else SIZE_FALLBACK_CULLING
         
         val halfWidth = width / 2f
         val halfHeight = height / 2f

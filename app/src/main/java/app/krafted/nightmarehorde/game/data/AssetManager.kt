@@ -120,20 +120,8 @@ class AssetManager @Inject constructor(
         drawable.setBounds(0, 0, canvas.width, canvas.height)
         drawable.draw(canvas)
         
-        val imageBitmap = bitmap.asImageBitmap()
-        // We don't recycle 'bitmap' here immediately because asImageBitmap might wrap it?
-        // Actually asImageBitmap() creates a wrapper, so we shouldn't recycle the underlying bitmap 
-        // if we want to use it. Composes ImageBitmap wraps the Android Bitmap.
-        // In the previous code, I recycled it?
-        // Wait, AndroidImageBitmap *wraps* the internal bitmap.
-        // Recycling it makes it invalid!
-        // My previous fix `androidBitmap?.recycle()` was WRONG!
-        // If `asImageBitmap()` creates a copy, then it's fine.
-        // Docs: "Creates an ImageBitmap from the given Bitmap."
-        // It usually wraps it.
-        // If I recycle the source, the ImageBitmap breaks.
-        // CRITICAL BUG FIX: Remove recycle() from the previous fix too!
-        
-        return imageBitmap
+        // asImageBitmap() wraps the Android Bitmap - do NOT recycle the source bitmap
+        // as it would invalidate the ImageBitmap. The bitmap will be GC'd with the cache.
+        return bitmap.asImageBitmap()
     }
 }

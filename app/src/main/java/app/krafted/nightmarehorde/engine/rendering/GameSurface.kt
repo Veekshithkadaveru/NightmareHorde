@@ -42,7 +42,9 @@ fun GameSurface(
 
 /**
  * Overload that accepts a function to provide entities.
- * Useful when entities list changes frequently.
+ * Calls the provider directly each recomposition to ensure fresh entity list.
+ * 
+ * Note: Do not cache with remember() as entities change every frame.
  */
 @Composable
 fun GameSurface(
@@ -52,10 +54,8 @@ fun GameSurface(
     modifier: Modifier = Modifier,
     backgroundColor: Color = Color.Black
 ) {
-    val entities = remember(entitiesProvider) { entitiesProvider() }
-    
     GameSurface(
-        entities = entities,
+        entities = entitiesProvider(),
         camera = camera,
         spriteRenderer = spriteRenderer,
         modifier = modifier,

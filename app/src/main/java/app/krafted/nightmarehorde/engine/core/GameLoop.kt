@@ -69,7 +69,9 @@ class GameLoop @Inject constructor() {
 
     fun addSystem(system: GameSystem) {
         systems.add(system)
-        // Re-sort mechanism could go here if systems have priority
+        // Sort by priority - lower values run first
+        // Note: CopyOnWriteArrayList copies on write, so sort is safe but creates a new array
+        systems.sortBy { it.priority }
     }
 
     fun addEntity(entity: Entity) {

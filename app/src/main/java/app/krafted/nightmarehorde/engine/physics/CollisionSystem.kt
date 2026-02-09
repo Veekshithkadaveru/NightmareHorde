@@ -12,7 +12,7 @@ import app.krafted.nightmarehorde.engine.core.components.TransformComponent
  */
 class CollisionSystem(
     private val spatialGrid: SpatialHashGrid = SpatialHashGrid()
-) : GameSystem() {
+) : GameSystem(priority = 60) {  // Run after MovementSystem (50)
     
     /** Callback invoked when two entities collide */
     var onCollision: ((CollisionEvent) -> Unit)? = null
