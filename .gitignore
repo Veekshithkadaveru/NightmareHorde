@@ -13,3 +13,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Legacy Collection and Design Docs
+Legacy Collection/
+DEVELOPMENT_PLAN.md

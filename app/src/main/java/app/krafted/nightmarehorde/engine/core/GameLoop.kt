@@ -80,6 +80,10 @@ class GameLoop @Inject constructor() {
         entities.remove(entity)
     }
     
+    fun getEntitiesSnapshot(): List<Entity> {
+        return entities.toList()
+    }
+    
     fun clear() {
         entities.clear()
         // Systems typically stay for the session

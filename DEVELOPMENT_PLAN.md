@@ -137,11 +137,13 @@ todos:
 
 > **Overview**: Build a complete Android zombie horde survival game with Kotlin and Jetpack Compose. Features include turret defense system, day/night cycle, 7 zombie types, 3 bosses, 6 playable characters, 5 maps, ammo scavenging, survivor rescue missions, level-up system with 20+ upgrades, meta progression with permanent upgrades, and full monetization with AdMob and Google Play Billing.
 
+> **Asset Note**: Agents can take 2D image assets from the `Legacy Collection` directory.
+
 ## ✅ Project Status & Todos
 
 ### 🏗 Phase A: Core Engine
-- [ ] **A1: Foundation Setup** <!-- id: foundation -->
-- [ ] **A2: Rendering System** <!-- id: rendering -->
+- [x] **A1: Foundation Setup** <!-- id: foundation -->
+- [x] **A2: Rendering System** <!-- id: rendering -->
 - [ ] **A3: Physics & Collision** <!-- id: physics -->
 - [ ] **A4: Input System** <!-- id: input -->
 
