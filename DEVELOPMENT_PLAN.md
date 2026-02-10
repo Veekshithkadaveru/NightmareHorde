@@ -148,7 +148,7 @@ todos:
 - [x] **A4: Input System** <!-- id: input -->
 
 ### 🎮 Phase B: Player & Combat
-- [ ] **B1: Player Entity** <!-- id: player -->
+- [x] **B1: Player Entity** <!-- id: player -->
 - [ ] **B2: Weapon System** <!-- id: weapons -->
 - [ ] **B3: Combat Mechanics** <!-- id: combat -->
 
