@@ -1,0 +1,116 @@
+package app.krafted.nightmarehorde.game.systems
+
+import app.krafted.nightmarehorde.engine.core.Entity
+import app.krafted.nightmarehorde.engine.core.GameSystem
+import app.krafted.nightmarehorde.engine.core.components.HealthComponent
+import app.krafted.nightmarehorde.engine.core.components.PlayerTagComponent
+import app.krafted.nightmarehorde.engine.core.components.SpriteComponent
+import app.krafted.nightmarehorde.engine.core.components.StatsComponent
+import app.krafted.nightmarehorde.engine.core.components.VelocityComponent
+import app.krafted.nightmarehorde.engine.input.InputManager
+import app.krafted.nightmarehorde.engine.rendering.Camera
+
+/**
+ * System that drives the player entity each frame:
+ * - Reads joystick input and applies velocity based on move speed
+ * - Flips sprite horizontally for left/right facing
+ * - Updates the camera to follow the player
+ * - Ticks invincibility timer on HealthComponent
+ *
+ * Priority 10 — runs before MovementSystem (50) so velocity is set before position updates.
+ */
+class PlayerSystem(
+    private val inputManager: InputManager,
+    private val camera: Camera
+) : GameSystem(priority = 10) {
+
+    /** Callback invoked when the player dies. Set by GameViewModel. */
+    var onPlayerDeath: (() -> Unit)? = null
+
+    /** Tracks whether death has already been fired this session */
+    private var deathFired = false
+
+    /** Track last horizontal direction for sprite flipping (1 = right, -1 = left) */
+    private var lastFacingDirection = 1
+
+    /** Accumulator for the invincibility flash effect (seconds) */
+    private var flashTimer = 0f
+
+    /** Flash toggle period in seconds */
+    private companion object {
+        const val FLASH_PERIOD = 0.1f
+    }
+
+    override fun update(deltaTime: Float, entities: List<Entity>) {
+        val player = entities.firstOrNull { it.getComponent(PlayerTagComponent::class) != null }
+            ?: return
+
+        val velocity = player.getComponent(VelocityComponent::class) ?: return
+        val stats = player.getComponent(StatsComponent::class) ?: return
+        val health = player.getComponent(HealthComponent::class) ?: return
+        val sprite = player.getComponent(SpriteComponent::class)
+
+        // --- Input → Velocity (VS-style: any joystick deflection = full speed) ---
+        val rawDirection = inputManager.movementDirection.value
+        val dirMagnitude = kotlin.math.sqrt(rawDirection.x * rawDirection.x + rawDirection.y * rawDirection.y)
+        
+        if (dirMagnitude > 0.01f) {
+            // Normalize to magnitude 1 — full speed in the joystick direction
+            val normX = rawDirection.x / dirMagnitude
+            val normY = rawDirection.y / dirMagnitude
+            velocity.vx = normX * stats.moveSpeed
+            velocity.vy = normY * stats.moveSpeed
+        } else {
+            velocity.vx = 0f
+            velocity.vy = 0f
+        }
+
+        // --- Sprite Flip ---
+        if (sprite != null) {
+            if (rawDirection.x < -0.01f) {
+                lastFacingDirection = -1
+                sprite.flipX = true
+            } else if (rawDirection.x > 0.01f) {
+                lastFacingDirection = 1
+                sprite.flipX = false
+            }
+            // If direction.x is ~0, keep last facing direction
+        }
+
+        // --- Camera Follow (instant — VS-style) ---
+        val playerTransform = player.getComponent(
+            app.krafted.nightmarehorde.engine.core.components.TransformComponent::class
+        )
+        if (playerTransform != null) {
+            camera.setPosition(playerTransform.x, playerTransform.y)
+        }
+
+        // --- Invincibility Timer ---
+        health.updateInvincibility(deltaTime)
+
+        // --- Invincibility Visual Flash ---
+        if (sprite != null) {
+            if (health.isInvincible) {
+                flashTimer += deltaTime
+                // Toggle between visible and semi-transparent on a fixed period
+                sprite.alpha = if ((flashTimer / FLASH_PERIOD).toInt() % 2 == 0) 1f else 0.3f
+            } else {
+                flashTimer = 0f
+                sprite.alpha = 1f
+            }
+        }
+
+        // --- Death Check ---
+        if (!health.isAlive && !deathFired) {
+            deathFired = true
+            onPlayerDeath?.invoke()
+        }
+    }
+
+    /** Reset system state for a new game or revive */
+    fun reset() {
+        deathFired = false
+        lastFacingDirection = 1
+        flashTimer = 0f
+    }
+}
