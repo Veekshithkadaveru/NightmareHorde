@@ -9,12 +9,17 @@ import app.krafted.nightmarehorde.engine.core.components.HealthComponent
 import app.krafted.nightmarehorde.engine.core.components.SpriteComponent
 import app.krafted.nightmarehorde.engine.core.components.TransformComponent
 import app.krafted.nightmarehorde.engine.input.InputManager
+import app.krafted.nightmarehorde.engine.physics.CollisionResponseSystem
+import app.krafted.nightmarehorde.engine.physics.CollisionSystem
 import app.krafted.nightmarehorde.engine.physics.MovementSystem
+import app.krafted.nightmarehorde.engine.physics.SpatialHashGrid
 import app.krafted.nightmarehorde.engine.rendering.Camera
 import app.krafted.nightmarehorde.engine.rendering.SpriteRenderer
 import app.krafted.nightmarehorde.game.data.AssetManager
 import app.krafted.nightmarehorde.game.data.CharacterType
+import app.krafted.nightmarehorde.game.data.ObstacleType
 import app.krafted.nightmarehorde.game.entities.PlayerEntity
+import app.krafted.nightmarehorde.game.systems.ObstacleSpawnSystem
 import app.krafted.nightmarehorde.game.systems.PlayerAnimationSystem
 import app.krafted.nightmarehorde.game.systems.PlayerSystem
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -44,14 +49,29 @@ class GameViewModel @Inject constructor(
         if (isGameRunning) return
         isGameRunning = true
 
-        // Preload sprite assets (background + selected character)
+        // Preload sprite assets (background + selected character + obstacles)
         assetManager.preload(
             characterType.idleTextureKey,
             characterType.runTextureKey,
-            "background_space"
+            "background_space",
+            *ObstacleType.entries.map { it.textureKey }.toTypedArray()
         )
 
+        // Shared spatial grid used by CollisionSystem
+        val spatialGrid = SpatialHashGrid()
+
         // --- Register Systems (order by priority) ---
+
+        // ObstacleSpawnSystem (5): procedural obstacle spawning around the player
+        val obstacleSpawnSystem = ObstacleSpawnSystem().apply {
+            onSpawnEntity = { entity -> gameLoop.addEntity(entity) }
+            onDespawnEntity = { entityId ->
+                val entity = gameLoop.getEntitiesSnapshot().find { it.id == entityId }
+                if (entity != null) gameLoop.removeEntity(entity)
+            }
+        }
+        gameLoop.addSystem(obstacleSpawnSystem)
+
         // PlayerSystem (10): input → velocity, camera follow
         val playerSystem = PlayerSystem(inputManager, camera).apply {
             onPlayerDeath = {
@@ -66,6 +86,12 @@ class GameViewModel @Inject constructor(
 
         // MovementSystem (50): applies velocity to position
         gameLoop.addSystem(MovementSystem())
+
+        // CollisionResponseSystem (55): push entities out of obstacles
+        gameLoop.addSystem(CollisionResponseSystem())
+
+        // CollisionSystem (60): collision detection (populates spatial grid)
+        gameLoop.addSystem(CollisionSystem(spatialGrid))
 
         // --- Create Entities ---
 
