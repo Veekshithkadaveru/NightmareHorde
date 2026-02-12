@@ -52,6 +52,24 @@ data class Vector2(
      */
     fun dot(other: Vector2): Float = x * other.x + y * other.y
     
+    /**
+     * Returns the angle of this vector in radians.
+     */
+    fun angle(): Float = kotlin.math.atan2(y, x)
+
+    /**
+     * Rotates the vector by the given angle in degrees.
+     */
+    fun rotate(degrees: Float): Vector2 {
+        val radians = Math.toRadians(degrees.toDouble())
+        val cos = kotlin.math.cos(radians).toFloat()
+        val sin = kotlin.math.sin(radians).toFloat()
+        return Vector2(
+            x * cos - y * sin,
+            x * sin + y * cos
+        )
+    }
+
     operator fun plus(other: Vector2) = Vector2(x + other.x, y + other.y)
     operator fun minus(other: Vector2) = Vector2(x - other.x, y - other.y)
     operator fun times(scalar: Float) = Vector2(x * scalar, y * scalar)

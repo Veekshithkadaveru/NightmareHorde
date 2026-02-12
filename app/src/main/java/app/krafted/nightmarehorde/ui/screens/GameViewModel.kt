@@ -18,10 +18,21 @@ import app.krafted.nightmarehorde.engine.rendering.SpriteRenderer
 import app.krafted.nightmarehorde.game.data.AssetManager
 import app.krafted.nightmarehorde.game.data.CharacterType
 import app.krafted.nightmarehorde.game.data.ObstacleType
+import app.krafted.nightmarehorde.game.entities.AmmoPickup
 import app.krafted.nightmarehorde.game.entities.PlayerEntity
+import app.krafted.nightmarehorde.game.systems.AmmoSystem
 import app.krafted.nightmarehorde.game.systems.ObstacleSpawnSystem
 import app.krafted.nightmarehorde.game.systems.PlayerAnimationSystem
 import app.krafted.nightmarehorde.game.systems.PlayerSystem
+import app.krafted.nightmarehorde.game.systems.ProjectileSystem
+import app.krafted.nightmarehorde.game.systems.WeaponSystem
+import app.krafted.nightmarehorde.game.weapons.AssaultRifleWeapon
+import app.krafted.nightmarehorde.game.weapons.FlamethrowerWeapon
+import app.krafted.nightmarehorde.game.weapons.PistolWeapon
+import app.krafted.nightmarehorde.game.weapons.SMGWeapon
+import app.krafted.nightmarehorde.game.weapons.ShotgunWeapon
+import app.krafted.nightmarehorde.game.weapons.SwordWeapon
+import app.krafted.nightmarehorde.game.weapons.WeaponType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,6 +52,10 @@ class GameViewModel @Inject constructor(
     /** Player health exposed for the HUD */
     private val _playerHealth = MutableStateFlow(Pair(100, 100)) // (current, max)
     val playerHealth: StateFlow<Pair<Int, Int>> = _playerHealth.asStateFlow()
+    
+    // Debug: Exposed weapon name for UI
+    private val _currentWeaponName = MutableStateFlow("Pistol")
+    val currentWeaponName: StateFlow<String> = _currentWeaponName.asStateFlow()
 
     private var isGameRunning = false
     private var playerEntity: Entity? = null
@@ -49,11 +64,12 @@ class GameViewModel @Inject constructor(
         if (isGameRunning) return
         isGameRunning = true
 
-        // Preload sprite assets (background + selected character + obstacles)
+        // Preload sprite assets (background + selected character + obstacles + projectiles)
         assetManager.preload(
             characterType.idleTextureKey,
             characterType.runTextureKey,
             "background_space",
+            "projectile_standard",
             *ObstacleType.entries.map { it.textureKey }.toTypedArray()
         )
 
@@ -91,7 +107,17 @@ class GameViewModel @Inject constructor(
         gameLoop.addSystem(CollisionResponseSystem())
 
         // CollisionSystem (60): collision detection (populates spatial grid)
-        gameLoop.addSystem(CollisionSystem(spatialGrid))
+        val collisionSystem = CollisionSystem(spatialGrid)
+        gameLoop.addSystem(collisionSystem)
+
+        // WeaponSystem (30): firing logic
+        gameLoop.addSystem(WeaponSystem(gameLoop))
+
+        // ProjectileSystem (45): handle projectile lifetime/range AND collisions
+        gameLoop.addSystem(ProjectileSystem(gameLoop, collisionSystem))
+
+        // AmmoSystem (40): pickup handling
+        gameLoop.addSystem(AmmoSystem(collisionSystem, gameLoop))
 
         // --- Create Entities ---
 
@@ -109,6 +135,9 @@ class GameViewModel @Inject constructor(
         // Player
         playerEntity = PlayerEntity.create(characterType = characterType, spawnX = 0f, spawnY = 0f)
         gameLoop.addEntity(playerEntity!!)
+
+        // Test Ammo Pickup
+        gameLoop.addEntity(AmmoPickup.create(x = 200f, y = 200f, amount = 20, weaponTypeIndex = 2)) // Shotgun ammo usually, but general for now
 
         // Start the game loop
         gameLoop.start(viewModelScope)
@@ -141,5 +170,31 @@ class GameViewModel @Inject constructor(
         gameLoop.clear()
         inputManager.reset()
         playerEntity = null
+    }
+
+    // Debug: Cycle through weapons
+    fun debugCycleWeapon() {
+        playerEntity?.let { player ->
+            val weaponComp = player.getComponent(app.krafted.nightmarehorde.engine.core.components.WeaponComponent::class) ?: return
+            val currentType = weaponComp.equippedWeapon?.type ?: return
+            
+            val newWeapon = when (currentType) {
+                WeaponType.PISTOL -> AssaultRifleWeapon()
+                WeaponType.ASSAULT_RIFLE -> ShotgunWeapon()
+                WeaponType.SHOTGUN -> SMGWeapon()
+                WeaponType.SMG -> FlamethrowerWeapon()
+                WeaponType.FLAMETHROWER -> SwordWeapon()
+                WeaponType.MELEE -> PistolWeapon()
+            }
+            
+            // Equip new weapon (give some ammo for testing)
+            weaponComp.equippedWeapon = newWeapon
+            if (!newWeapon.infiniteAmmo) {
+                weaponComp.currentAmmo = newWeapon.maxAmmo 
+            }
+            
+            _currentWeaponName.value = newWeapon.name
+            Log.d("GameViewModel", "Switched weapon to: ${newWeapon.name}")
+        }
     }
 }
