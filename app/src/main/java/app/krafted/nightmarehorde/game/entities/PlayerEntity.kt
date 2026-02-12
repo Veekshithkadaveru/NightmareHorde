@@ -10,7 +10,9 @@ import app.krafted.nightmarehorde.engine.core.components.SpriteComponent
 import app.krafted.nightmarehorde.engine.core.components.StatsComponent
 import app.krafted.nightmarehorde.engine.core.components.TransformComponent
 import app.krafted.nightmarehorde.engine.core.components.VelocityComponent
+import app.krafted.nightmarehorde.engine.core.components.WeaponComponent
 import app.krafted.nightmarehorde.game.data.CharacterType
+import app.krafted.nightmarehorde.game.weapons.PistolWeapon
 
 /**
  * Factory for creating the player entity with all required components.
@@ -56,6 +58,13 @@ object PlayerEntity {
                 frameHeight = characterType.frameHeight,
                 currentFrame = 0,
                 animationKey = "idle"
+            ))
+
+            // Start with Pistol (Phase B2)
+            addComponent(WeaponComponent(
+                equippedWeapon = PistolWeapon(),
+                currentAmmo = 0,
+                totalAmmo = 0
             ))
 
             addComponent(HealthComponent(

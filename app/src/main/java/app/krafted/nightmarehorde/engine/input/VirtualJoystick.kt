@@ -127,12 +127,12 @@ fun VirtualJoystick(
                         },
                         onDrag = { change, dragAmount ->
                             change.consume()
-                            
+
                             // Calculate new potential offset
                             val newOffset = knobOffset + dragAmount
                             val distance = sqrt(newOffset.x * newOffset.x + newOffset.y * newOffset.y)
                             val maxDistance = outerRadiusPx - innerRadiusPx
-                            
+
                             // Clamp to within outer ring bounds
                             knobOffset = if (distance > maxDistance) {
                                 val angle = atan2(newOffset.y, newOffset.x)
@@ -143,19 +143,22 @@ fun VirtualJoystick(
                             } else {
                                 newOffset
                             }
-                            
-                            // Calculate normalized magnitude (0 to 1)
-                            val normalizedMagnitude = (distance / maxDistance).coerceIn(0f, 1f)
-                            
+
+                            // Use the CLAMPED knob position for direction and magnitude
+                            // This prevents the pre-clamp distance from producing
+                            // inconsistent magnitude/direction values during fast spins
+                            val clampedDist = sqrt(knobOffset.x * knobOffset.x + knobOffset.y * knobOffset.y)
+                            val normalizedMagnitude = (clampedDist / maxDistance).coerceIn(0f, 1f)
+
                             // Apply dead zone - only emit if outside dead zone
                             if (normalizedMagnitude > deadZone) {
                                 // Remap from [deadZone, 1] to [0, 1] for smooth response
                                 val remappedMagnitude = (normalizedMagnitude - deadZone) / (1f - deadZone)
-                                val angle = atan2(newOffset.y, newOffset.x)
-                                
+                                val angle = atan2(knobOffset.y, knobOffset.x)
+
                                 val normalizedX = cos(angle) * remappedMagnitude
                                 val normalizedY = sin(angle) * remappedMagnitude
-                                
+
                                 onDirectionChange(Vector2(normalizedX, normalizedY))
                             } else {
                                 // Inside dead zone - no movement

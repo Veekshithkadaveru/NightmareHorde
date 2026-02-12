@@ -14,8 +14,16 @@ class CollisionSystem(
     private val spatialGrid: SpatialHashGrid = SpatialHashGrid()
 ) : GameSystem(priority = 60) {  // Run after MovementSystem (50)
     
-    /** Callback invoked when two entities collide */
-    var onCollision: ((CollisionEvent) -> Unit)? = null
+    /** Callbacks invoked when two entities collide */
+    private val collisionListeners = mutableListOf<(CollisionEvent) -> Unit>()
+
+    fun addCollisionListener(listener: (CollisionEvent) -> Unit) {
+        collisionListeners.add(listener)
+    }
+
+    fun removeCollisionListener(listener: (CollisionEvent) -> Unit) {
+        collisionListeners.remove(listener)
+    }
     
     /** Set of collision pairs already processed this frame (to avoid duplicates) */
     private val processedPairs = mutableSetOf<Long>()
@@ -59,9 +67,8 @@ class CollisionSystem(
                 
                 // Narrow-phase: actual collision test
                 if (checkCollision(transformA, colliderA, transformB, colliderB)) {
-                    onCollision?.invoke(
-                        CollisionEvent(entityA, entityB, colliderA.layer, colliderB.layer)
-                    )
+                    val event = CollisionEvent(entityA, entityB, colliderA.layer, colliderB.layer)
+                    collisionListeners.forEach { it.invoke(event) }
                 }
             }
         }

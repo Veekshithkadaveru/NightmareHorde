@@ -3,6 +3,8 @@ package app.krafted.nightmarehorde.ui.screens
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -35,6 +37,7 @@ fun GameScreen(
     modifier: Modifier = Modifier
 ) {
     val playerHealth by viewModel.playerHealth.collectAsState()
+    val currentWeaponName by viewModel.currentWeaponName.collectAsState()
     val scope = rememberCoroutineScope()
 
     // Frame tick counter — increments every vsync to force Canvas redraws
@@ -88,6 +91,17 @@ fun GameScreen(
                 .align(Alignment.TopStart)
                 .padding(16.dp)
         )
+
+        // Debug Weapon Selector
+        Button(
+            onClick = { viewModel.debugCycleWeapon() },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(16.dp)
+        ) {
+            Text(text = "Weapon: $currentWeaponName")
+        }
+
 
         // Virtual Joystick - bottom left corner
         VirtualJoystick(

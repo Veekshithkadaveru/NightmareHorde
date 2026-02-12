@@ -2,11 +2,13 @@ package app.krafted.nightmarehorde.game.systems
 
 import app.krafted.nightmarehorde.engine.core.Entity
 import app.krafted.nightmarehorde.engine.core.GameSystem
+import app.krafted.nightmarehorde.engine.core.Vector2
 import app.krafted.nightmarehorde.engine.core.components.HealthComponent
 import app.krafted.nightmarehorde.engine.core.components.PlayerTagComponent
 import app.krafted.nightmarehorde.engine.core.components.SpriteComponent
 import app.krafted.nightmarehorde.engine.core.components.StatsComponent
 import app.krafted.nightmarehorde.engine.core.components.VelocityComponent
+import app.krafted.nightmarehorde.engine.core.components.WeaponComponent
 import app.krafted.nightmarehorde.engine.input.InputManager
 import app.krafted.nightmarehorde.engine.rendering.Camera
 
@@ -33,6 +35,9 @@ class PlayerSystem(
     /** Track last horizontal direction for sprite flipping (1 = right, -1 = left) */
     private var lastFacingDirection = 1
 
+    /** Last non-zero aim direction — persists when player stops moving */
+    private var lastAimDirection = Vector2(1f, 0f)
+
     /** Accumulator for the invincibility flash effect (seconds) */
     private var flashTimer = 0f
 
@@ -53,16 +58,25 @@ class PlayerSystem(
         // --- Input → Velocity (VS-style: any joystick deflection = full speed) ---
         val rawDirection = inputManager.movementDirection.value
         val dirMagnitude = kotlin.math.sqrt(rawDirection.x * rawDirection.x + rawDirection.y * rawDirection.y)
-        
+
         if (dirMagnitude > 0.01f) {
             // Normalize to magnitude 1 — full speed in the joystick direction
             val normX = rawDirection.x / dirMagnitude
             val normY = rawDirection.y / dirMagnitude
             velocity.vx = normX * stats.moveSpeed
             velocity.vy = normY * stats.moveSpeed
+
+            // Save normalized direction for weapon aiming — persists when player stops
+            lastAimDirection = Vector2(normX, normY)
         } else {
             velocity.vx = 0f
             velocity.vy = 0f
+        }
+
+        // --- Write aim direction into WeaponComponent so WeaponSystem always has it ---
+        val weaponComp = player.getComponent(WeaponComponent::class)
+        if (weaponComp != null) {
+            weaponComp.facingDirection = lastAimDirection
         }
 
         // --- Sprite Flip ---
@@ -111,6 +125,7 @@ class PlayerSystem(
     fun reset() {
         deathFired = false
         lastFacingDirection = 1
+        lastAimDirection = Vector2(1f, 0f)
         flashTimer = 0f
     }
 }
