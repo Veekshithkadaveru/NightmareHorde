@@ -207,14 +207,27 @@ class SpriteRenderer @Inject constructor(
     ): Boolean {
         // fillViewport sprites are always visible
         if (sprite.fillViewport) return true
-        
-        // Use actual size if available, fallback to conservative estimate for culling
-        val width = if (sprite.width > 0) sprite.width else SIZE_FALLBACK_CULLING
-        val height = if (sprite.height > 0) sprite.height else SIZE_FALLBACK_CULLING
-        
-        val halfWidth = width / 2f
-        val halfHeight = height / 2f
-        
+
+        // Determine effective display size:
+        // 1. Use explicit width/height if set
+        // 2. Fall back to frameWidth/frameHeight for sprite sheets
+        // 3. Fall back to conservative estimate
+        val baseWidth = when {
+            sprite.width > 0 -> sprite.width
+            sprite.frameWidth > 0 -> sprite.frameWidth.toFloat()
+            else -> SIZE_FALLBACK_CULLING
+        }
+        val baseHeight = when {
+            sprite.height > 0 -> sprite.height
+            sprite.frameHeight > 0 -> sprite.frameHeight.toFloat()
+            else -> SIZE_FALLBACK_CULLING
+        }
+
+        // Account for entity scale (use at least 1x so we never cull too aggressively)
+        val scale = if (transform.scale > 1f) transform.scale else 1f
+        val halfWidth = (baseWidth * scale) / 2f
+        val halfHeight = (baseHeight * scale) / 2f
+
         return transform.x + halfWidth >= bounds.left &&
                transform.x - halfWidth <= bounds.right &&
                transform.y + halfHeight >= bounds.top &&

@@ -16,7 +16,9 @@ class StatsComponent(
     /** Multiplier applied to outgoing damage (1.0 = 100%) */
     var damageMultiplier: Float = 1f,
     /** Multiplier applied to weapon fire rate (1.0 = 100%) */
-    var fireRateMultiplier: Float = 1f
+    var fireRateMultiplier: Float = 1f,
+    /** Base physical damage (e.g. for collision/melee) */
+    var baseDamage: Float = 0f
 ) : Component {
 
     override fun toString(): String {

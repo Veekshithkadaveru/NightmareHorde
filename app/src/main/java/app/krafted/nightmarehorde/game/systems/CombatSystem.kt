@@ -2,14 +2,21 @@ package app.krafted.nightmarehorde.game.systems
 
 import app.krafted.nightmarehorde.engine.core.Entity
 import app.krafted.nightmarehorde.engine.core.GameSystem
+import app.krafted.nightmarehorde.engine.core.components.AIBehavior
+import app.krafted.nightmarehorde.engine.core.components.AIComponent
 import app.krafted.nightmarehorde.engine.core.components.ColliderComponent
+import app.krafted.nightmarehorde.engine.core.components.CollisionLayer
 import app.krafted.nightmarehorde.engine.core.components.HealthComponent
 import app.krafted.nightmarehorde.engine.core.components.ProjectileComponent
+import app.krafted.nightmarehorde.engine.core.components.StatsComponent
 import app.krafted.nightmarehorde.engine.core.components.TransformComponent
 import app.krafted.nightmarehorde.engine.physics.Collider
 import app.krafted.nightmarehorde.game.entities.HitEffectEntity
 
 class CombatSystem(private val gameLoop: app.krafted.nightmarehorde.engine.core.GameLoop) : GameSystem(priority = 100) {
+
+    /** Callback for on-death effects (e.g. Bloater explosion) */
+    var onEnemyDeath: ((Entity) -> Unit)? = null
 
     override fun update(deltaTime: Float, entities: List<Entity>) {
         val projectiles = entities.filter { it.hasComponent(ProjectileComponent::class) }
@@ -28,6 +35,10 @@ class CombatSystem(private val gameLoop: app.krafted.nightmarehorde.engine.core.
 
                 val targetTransform = targetEntity.getComponent(TransformComponent::class) ?: continue
                 val targetCollider = targetEntity.getComponent(ColliderComponent::class) ?: continue
+
+                // Enemy projectiles only hit player, player projectiles only hit enemies
+                if (projCollider.layer == CollisionLayer.ENEMY && targetCollider.layer == CollisionLayer.ENEMY) continue
+                if (projCollider.layer == CollisionLayer.PROJECTILE && targetCollider.layer == CollisionLayer.PLAYER) continue
 
                 if (checkCollision(projTransform, projCollider, targetTransform, targetCollider)) {
                     handleHit(projectileEntity, projectile, targetEntity)
@@ -74,6 +85,7 @@ class CombatSystem(private val gameLoop: app.krafted.nightmarehorde.engine.core.
             }
             
             if (!health.isAlive) {
+                onEnemyDeath?.invoke(targetEntity)
                 targetEntity.isActive = false
             }
         }
