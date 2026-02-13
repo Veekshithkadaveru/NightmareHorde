@@ -7,6 +7,7 @@ import app.krafted.nightmarehorde.engine.core.Vector2
 import app.krafted.nightmarehorde.engine.core.components.TransformComponent
 import app.krafted.nightmarehorde.engine.core.components.WeaponComponent
 import app.krafted.nightmarehorde.game.entities.ProjectileEntity
+import app.krafted.nightmarehorde.game.weapons.Weapon
 
 class WeaponSystem(
     private val gameLoop: GameLoop
@@ -44,7 +45,7 @@ class WeaponSystem(
 
     private fun fireWeapon(
         owner: Entity,
-        weapon: app.krafted.nightmarehorde.game.weapons.Weapon,
+        weapon: Weapon,
         transform: TransformComponent,
         direction: Vector2,
         weaponComp: WeaponComponent
@@ -63,7 +64,7 @@ class WeaponSystem(
 
     private fun fireStandard(
         owner: Entity,
-        weapon: app.krafted.nightmarehorde.game.weapons.Weapon,
+        weapon: Weapon,
         transform: TransformComponent,
         direction: Vector2
     ) {
@@ -81,15 +82,15 @@ class WeaponSystem(
             val spread = startAngle + (angleStep * i)
             val finalDirection = if (count > 1) direction.rotate(spread) else direction
 
-            val projectile = ProjectileEntity.create(
+            // Direction angle in radians for transform rotation
+            val projectile = ProjectileEntity(
                 x = transform.x,
                 y = transform.y,
-                direction = finalDirection,
+                rotation = finalDirection.angle(),
                 speed = weapon.projectileSpeed,
                 damage = weapon.damage,
-                range = weapon.range,
-                ownerId = "player",
-                penetrating = weapon.penetrating
+                ownerId = owner.id,
+                lifeTime = weapon.range / weapon.projectileSpeed // Convert range to lifetime
             )
             gameLoop.addEntity(projectile)
         }
@@ -97,7 +98,7 @@ class WeaponSystem(
 
     private fun fireFlame(
         owner: Entity,
-        weapon: app.krafted.nightmarehorde.game.weapons.Weapon,
+        weapon: Weapon,
         transform: TransformComponent,
         direction: Vector2
     ) {
@@ -108,35 +109,34 @@ class WeaponSystem(
         // Slight speed variation for organic flame look
         val speedVariation = weapon.projectileSpeed * (0.8f + random.nextFloat() * 0.4f)
 
-        val projectile = ProjectileEntity.createFlame(
+        val projectile = ProjectileEntity(
             x = transform.x + finalDirection.x * 15f, // Offset slightly forward
             y = transform.y + finalDirection.y * 15f,
-            direction = finalDirection,
+            rotation = finalDirection.angle(),
             speed = speedVariation,
             damage = weapon.damage,
-            range = weapon.range,
-            ownerId = "player"
+            ownerId = owner.id,
+            lifeTime = 0.6f // Short-lived flame particle
         )
         gameLoop.addEntity(projectile)
     }
 
     private fun fireSword(
         owner: Entity,
-        weapon: app.krafted.nightmarehorde.game.weapons.Weapon,
+        weapon: Weapon,
         transform: TransformComponent,
         direction: Vector2
     ) {
         // VS-style sword slash: ONE large horizontal slash on the facing side of the player.
-        // Centered at (range) distance from the player in the facing direction.
-        // The slash entity is a wide, thin rectangle perpendicular to the direction.
         val offsetDist = weapon.range
-        val projectile = ProjectileEntity.createSlash(
+        val projectile = ProjectileEntity(
             x = transform.x + direction.x * offsetDist,
             y = transform.y + direction.y * offsetDist,
-            direction = direction,
+            rotation = direction.angle(),
+            speed = 0f, // Stationary slash
             damage = weapon.damage,
-            range = weapon.range,
-            ownerId = "player"
+            ownerId = owner.id,
+            lifeTime = 0.25f // Brief flash
         )
         gameLoop.addEntity(projectile)
     }

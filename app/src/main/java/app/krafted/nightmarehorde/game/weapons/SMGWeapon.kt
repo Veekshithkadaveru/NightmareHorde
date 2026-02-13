@@ -1,12 +1,12 @@
 package app.krafted.nightmarehorde.game.weapons
 
 class SMGWeapon : Weapon(
-    type = WeaponType.SMG,
     name = "SMG",
-    damage = 8f,
-    fireRate = 8f, // 8 shots per second
-    range = 5000f, // Long range — travels until hitting obstacles/enemies
-    projectileSpeed = 650f,
-    maxAmmo = 40,
-    infiniteAmmo = false
+    damage = 12f,
+    fireRate = 12f, // Very fast
+    range = 350f,
+    projectileSpeed = 750f,
+    maxAmmo = 180,
+    spreadAngle = 10f, // Slight inaccuracy
+    type = WeaponType.SMG
 )

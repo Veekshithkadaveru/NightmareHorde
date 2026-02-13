@@ -97,5 +97,8 @@ class GameLoop @Inject constructor() {
         systems.forEach { system ->
             system.update(deltaTime, entities)
         }
+        
+        // Cleanup dead entities
+        entities.removeAll { !it.isActive }
     }
 }

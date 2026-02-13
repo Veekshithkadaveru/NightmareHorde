@@ -8,30 +8,32 @@ import app.krafted.nightmarehorde.engine.core.components.SpriteComponent
 import app.krafted.nightmarehorde.engine.core.components.TransformComponent
 
 object AmmoPickup {
-    fun create(x: Float, y: Float, amount: Int = 10, weaponTypeIndex: Int = 0): Entity {
-        // Simple mapping for icon: 0=Pistol(unused), 1=Rifle, 2=Shotgun, 3=SMG
-        // We can just use a generic crate or specific weapon icons.
-        // Let's use weapon_rifle for now as a generic ammo box if not specified
-        val texture = when (weaponTypeIndex) {
-            1 -> "weapon_rifle"
-            2 -> "weapon_shotgun"
-            3 -> "weapon_smg"
-            else -> "weapon_pistol" 
-        }
-
+    fun create(
+        x: Float,
+        y: Float,
+        amount: Int = 20,
+        weaponTypeIndex: Int = 0 // 0=Pistol, etc. Not used yet, for future specific ammo types
+    ): Entity {
         return Entity().apply {
-            addComponent(TransformComponent(x = x, y = y, scale = 1.0f))
+            addComponent(TransformComponent(x = x, y = y))
             val collider = ColliderComponent.circle(
-                radius = 20f,
+                radius = 15f,
                 layer = CollisionLayer.PICKUP
             )
             collider.isTrigger = true
             addComponent(collider)
+            
+            // Reusing power-up sprites or similar
             addComponent(SpriteComponent(
-                textureKey = texture,
-                layer = 0
+                textureKey = "weapon_shotgun", // Placeholder visual
+                layer = 1
             ))
-            addComponent(AmmoPickupComponent(amount))
+            
+            // Adjust scale in TransformComponent if needed, not SpriteComponent
+            val transform = getComponent(TransformComponent::class)
+            transform?.scale = 0.8f
+            
+            addComponent(AmmoPickupComponent(amount = amount))
         }
     }
 }

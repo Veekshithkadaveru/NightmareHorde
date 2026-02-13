@@ -2,6 +2,46 @@ package app.krafted.nightmarehorde.game.weapons
 
 import app.krafted.nightmarehorde.engine.core.Vector2
 
+/**
+ * Base class for all weapons.
+ * Defines common properties like damage, fire rate, and projectile characteristics.
+ */
+abstract class Weapon(
+    val name: String,
+    val damage: Float,
+    val fireRate: Float, // Shots per second
+    val range: Float,
+    val projectileSpeed: Float = 500f,
+    val maxAmmo: Int = 100,
+    val infiniteAmmo: Boolean = false,
+    val projectileCount: Int = 1,
+    val spreadAngle: Float = 0f, // Total spread angle in degrees
+    val penetrating: Boolean = false,
+    val type: WeaponType
+) {
+    private var cooldownTimer: Float = 0f
+
+    val isFlame: Boolean
+        get() = type == WeaponType.FLAMETHROWER
+        
+    val isMelee: Boolean
+        get() = type == WeaponType.MELEE
+
+    fun tickCooldown(deltaTime: Float) {
+        if (cooldownTimer > 0f) {
+            cooldownTimer -= deltaTime
+        }
+    }
+
+    fun isReady(): Boolean {
+        return cooldownTimer <= 0f
+    }
+
+    fun resetCooldown() {
+        cooldownTimer = 1f / fireRate
+    }
+}
+
 enum class WeaponType {
     PISTOL,
     ASSAULT_RIFLE,
@@ -9,40 +49,4 @@ enum class WeaponType {
     SMG,
     FLAMETHROWER,
     MELEE
-}
-
-abstract class Weapon(
-    val type: WeaponType,
-    val name: String,
-    val damage: Float,
-    val fireRate: Float, // Shots per second
-    val range: Float,
-    val maxAmmo: Int,
-    val infiniteAmmo: Boolean = false,
-    val projectileSpeed: Float = 500f,
-    val projectileCount: Int = 1,
-    val spreadAngle: Float = 0f,
-    val penetrating: Boolean = false, // If true, passes through enemies (but still hits obstacles)
-    val isFlame: Boolean = false, // Flame particles (short-lived, random spread)
-    val isMelee: Boolean = false // Melee slash (VS-style sweep attack)
-) {
-    var checkCooldown: Float = 0f
-
-    /** Tick cooldown down by dt. Call every frame. */
-    fun tickCooldown(dt: Float) {
-        checkCooldown = (checkCooldown - dt).coerceAtLeast(-0.1f) // Prevent accumulating huge negative values
-    }
-
-    /** Returns true if weapon is ready to fire (cooldown expired). */
-    fun isReady(): Boolean = checkCooldown <= 0f
-
-    fun resetCooldown() {
-        checkCooldown = 1f / fireRate
-    }
-
-    /** Convenience: tick and check in one call. */
-    fun canFire(dt: Float): Boolean {
-        tickCooldown(dt)
-        return isReady()
-    }
 }

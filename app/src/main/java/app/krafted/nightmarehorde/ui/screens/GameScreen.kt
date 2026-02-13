@@ -79,6 +79,8 @@ fun GameScreen(
             },
             camera = viewModel.camera,
             spriteRenderer = viewModel.spriteRenderer,
+            damageNumberRenderer = viewModel.damageNumberRenderer,
+            particleRenderer = viewModel.particleRenderer,
             backgroundColor = Color(0xFF1a1a2e),
             modifier = Modifier.detectGameGestures(gestureHandler, scope)
         )

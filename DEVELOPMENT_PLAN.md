@@ -149,7 +149,7 @@ todos:
 
 ### 🎮 Phase B: Player & Combat
 - [x] **B1: Player Entity** <!-- id: player -->
-- [ ] **B2: Weapon System** <!-- id: weapons -->
+- [x] **B2: Weapon System** <!-- id: weapons -->
 - [ ] **B3: Combat Mechanics** <!-- id: combat -->
 
 ### 🧟 Phase C: Enemies & Waves

@@ -14,16 +14,24 @@ import app.krafted.nightmarehorde.engine.physics.CollisionSystem
 import app.krafted.nightmarehorde.engine.physics.MovementSystem
 import app.krafted.nightmarehorde.engine.physics.SpatialHashGrid
 import app.krafted.nightmarehorde.engine.rendering.Camera
+import app.krafted.nightmarehorde.engine.rendering.DamageNumberRenderer
+import app.krafted.nightmarehorde.engine.rendering.ParticleRenderer
 import app.krafted.nightmarehorde.engine.rendering.SpriteRenderer
 import app.krafted.nightmarehorde.game.data.AssetManager
 import app.krafted.nightmarehorde.game.data.CharacterType
 import app.krafted.nightmarehorde.game.data.ObstacleType
+import app.krafted.nightmarehorde.engine.core.components.WeaponComponent
 import app.krafted.nightmarehorde.game.entities.AmmoPickup
 import app.krafted.nightmarehorde.game.entities.PlayerEntity
+import app.krafted.nightmarehorde.game.entities.ZombieEntity
 import app.krafted.nightmarehorde.game.systems.AmmoSystem
+import app.krafted.nightmarehorde.game.systems.AutoAimSystem
+import app.krafted.nightmarehorde.game.systems.CombatSystem
+import app.krafted.nightmarehorde.game.systems.DamagePopupSystem
 import app.krafted.nightmarehorde.game.systems.ObstacleSpawnSystem
 import app.krafted.nightmarehorde.game.systems.PlayerAnimationSystem
 import app.krafted.nightmarehorde.game.systems.PlayerSystem
+import app.krafted.nightmarehorde.game.systems.ParticleSystem
 import app.krafted.nightmarehorde.game.systems.ProjectileSystem
 import app.krafted.nightmarehorde.game.systems.WeaponSystem
 import app.krafted.nightmarehorde.game.weapons.AssaultRifleWeapon
@@ -45,6 +53,8 @@ class GameViewModel @Inject constructor(
     val gameLoop: GameLoop,
     val camera: Camera,
     val spriteRenderer: SpriteRenderer,
+    val damageNumberRenderer: DamageNumberRenderer,
+    val particleRenderer: ParticleRenderer,
     val assetManager: AssetManager,
     val inputManager: InputManager
 ) : ViewModel() {
@@ -70,6 +80,7 @@ class GameViewModel @Inject constructor(
             characterType.runTextureKey,
             "background_space",
             "projectile_standard",
+            "zombie_walker",
             *ObstacleType.entries.map { it.textureKey }.toTypedArray()
         )
 
@@ -113,8 +124,20 @@ class GameViewModel @Inject constructor(
         // WeaponSystem (30): firing logic
         gameLoop.addSystem(WeaponSystem(gameLoop))
 
-        // ProjectileSystem (45): handle projectile lifetime/range AND collisions
-        gameLoop.addSystem(ProjectileSystem(gameLoop, collisionSystem))
+        // AutoAimSystem (20): automatically aim at nearest enemy
+        gameLoop.addSystem(AutoAimSystem())
+
+        // ProjectileSystem (80): handle projectile movement and lifetime
+        gameLoop.addSystem(ProjectileSystem())
+
+        // CombatSystem (100): handle projectile-enemy collisions
+        gameLoop.addSystem(CombatSystem(gameLoop))
+        
+        // ParticleSystem (110): update hit-effect particle lifetime
+        gameLoop.addSystem(ParticleSystem())
+
+        // DamagePopupSystem (120): animate floating damage numbers
+        gameLoop.addSystem(DamagePopupSystem())
 
         // AmmoSystem (40): pickup handling
         gameLoop.addSystem(AmmoSystem(collisionSystem, gameLoop))
@@ -138,6 +161,11 @@ class GameViewModel @Inject constructor(
 
         // Test Ammo Pickup
         gameLoop.addEntity(AmmoPickup.create(x = 200f, y = 200f, amount = 20, weaponTypeIndex = 2)) // Shotgun ammo usually, but general for now
+        
+        // Test Zombie ("Punching Bag")
+        spawnDebugZombie(300f, 0f)
+        spawnDebugZombie(-300f, 200f)
+        spawnDebugZombie(0f, 400f)
 
         // Start the game loop
         gameLoop.start(viewModelScope)
@@ -172,10 +200,16 @@ class GameViewModel @Inject constructor(
         playerEntity = null
     }
 
+    // Debug: Spawn a dummy zombie
+    private fun spawnDebugZombie(x: Float, y: Float) {
+        val zombie = ZombieEntity(x = x, y = y)
+        gameLoop.addEntity(zombie)
+    }
+
     // Debug: Cycle through weapons
     fun debugCycleWeapon() {
         playerEntity?.let { player ->
-            val weaponComp = player.getComponent(app.krafted.nightmarehorde.engine.core.components.WeaponComponent::class) ?: return
+            val weaponComp = player.getComponent(WeaponComponent::class) ?: return
             val currentType = weaponComp.equippedWeapon?.type ?: return
             
             val newWeapon = when (currentType) {

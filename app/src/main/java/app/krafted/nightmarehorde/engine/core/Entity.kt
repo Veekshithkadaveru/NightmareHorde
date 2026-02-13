@@ -7,7 +7,8 @@ import kotlin.reflect.KClass
  * Represents a game object with a unique ID and a collection of components.
  * Optimized for performance with Long ID and HashMap.
  */
-class Entity(val id: Long = nextId()) {
+open class Entity(val id: Long = nextId()) {
+    @Volatile var isActive: Boolean = true
     // Not thread-safe, assuming access from single-threaded GameLoop or synchronized external scope
     private val components = HashMap<KClass<out Component>, Component>()
 

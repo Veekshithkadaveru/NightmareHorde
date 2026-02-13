@@ -1,12 +1,11 @@
 package app.krafted.nightmarehorde.game.weapons
 
 class AssaultRifleWeapon : Weapon(
-    type = WeaponType.ASSAULT_RIFLE,
     name = "Assault Rifle",
-    damage = 12f,
-    fireRate = 5f, // 5 shots per second
-    range = 5000f, // Long range — travels until hitting obstacles/enemies
+    damage = 25f,
+    fireRate = 8f,
+    range = 600f,
     projectileSpeed = 700f,
-    maxAmmo = 30,
-    infiniteAmmo = false
+    maxAmmo = 120,
+    type = WeaponType.ASSAULT_RIFLE
 )
