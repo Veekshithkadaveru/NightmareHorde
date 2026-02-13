@@ -1,16 +1,13 @@
 package app.krafted.nightmarehorde.game.weapons
 
 class FlamethrowerWeapon : Weapon(
-    type = WeaponType.FLAMETHROWER,
     name = "Flamethrower",
-    damage = 5f, // Higher damage per tick — flame burns hard
-    fireRate = 15f, // Rapid stream of flames
-    range = 80f, // Very short range — must be close to enemies
-    maxAmmo = 200,
-    infiniteAmmo = false,
+    damage = 8f, // Low per tick, hits frequently
+    fireRate = 20f,
+    range = 250f,
+    projectileSpeed = 200f,
+    maxAmmo = 300,
+    spreadAngle = 25f, // Wide cone
     penetrating = true,
-    projectileSpeed = 200f, // Slow-moving flame particles
-    projectileCount = 1, // One flame per tick, but fires very fast
-    spreadAngle = 25f, // Random spread applied per particle in WeaponSystem
-    isFlame = true // Flag for special flame rendering
+    type = WeaponType.FLAMETHROWER
 )

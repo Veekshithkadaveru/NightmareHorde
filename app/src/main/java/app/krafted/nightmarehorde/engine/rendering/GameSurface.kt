@@ -9,19 +9,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import app.krafted.nightmarehorde.engine.core.Entity
+import androidx.compose.ui.text.ExperimentalTextApi
 
 /**
  * Compose Canvas surface for rendering the game world.
  * This is the main rendering component that displays all game entities.
  */
 @Composable
+@OptIn(ExperimentalTextApi::class)
 fun GameSurface(
     entities: List<Entity>,
     camera: Camera,
     spriteRenderer: SpriteRenderer,
+    damageNumberRenderer: DamageNumberRenderer,
+    particleRenderer: ParticleRenderer,
     modifier: Modifier = Modifier,
     backgroundColor: Color = Color.Black
 ) {
+    val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
+
     Canvas(
         modifier = modifier
             .fillMaxSize()
@@ -37,6 +43,21 @@ fun GameSurface(
             entities = entities,
             camera = camera
         )
+
+        // Render hit-effect particles
+        particleRenderer.render(
+            drawScope = this,
+            entities = entities,
+            camera = camera
+        )
+
+        // Render damage numbers on top
+        damageNumberRenderer.render(
+            drawScope = this,
+            entities = entities,
+            camera = camera,
+            textMeasurer = textMeasurer
+        )
     }
 }
 
@@ -51,6 +72,8 @@ fun GameSurface(
     entitiesProvider: () -> List<Entity>,
     camera: Camera,
     spriteRenderer: SpriteRenderer,
+    damageNumberRenderer: DamageNumberRenderer,
+    particleRenderer: ParticleRenderer,
     modifier: Modifier = Modifier,
     backgroundColor: Color = Color.Black
 ) {
@@ -58,6 +81,8 @@ fun GameSurface(
         entities = entitiesProvider(),
         camera = camera,
         spriteRenderer = spriteRenderer,
+        damageNumberRenderer = damageNumberRenderer,
+        particleRenderer = particleRenderer,
         modifier = modifier,
         backgroundColor = backgroundColor
     )

@@ -1,12 +1,12 @@
 package app.krafted.nightmarehorde.game.weapons
 
 class PistolWeapon : Weapon(
-    type = WeaponType.PISTOL,
     name = "Pistol",
-    damage = 10f,
+    damage = 15f,
     fireRate = 2f,
-    range = 1000f,
+    range = 400f,
+    projectileSpeed = 600f,
     maxAmmo = 0,
     infiniteAmmo = true,
-    projectileSpeed = 600f
+    type = WeaponType.PISTOL
 )
