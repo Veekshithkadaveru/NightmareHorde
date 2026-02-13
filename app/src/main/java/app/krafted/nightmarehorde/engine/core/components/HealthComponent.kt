@@ -41,9 +41,11 @@ class HealthComponent(
         val effectiveDamage = (amount - armor).coerceAtLeast(1)
         currentHealth = (currentHealth - effectiveDamage).coerceAtLeast(0)
 
-        // Start invincibility frames
-        isInvincible = true
-        invincibilityTimer = invincibilityDuration
+        // Start invincibility frames (only if enabled — zombies have duration 0)
+        if (invincibilityDuration > 0f) {
+            isInvincible = true
+            invincibilityTimer = invincibilityDuration
+        }
 
         return effectiveDamage
     }

@@ -1,5 +1,6 @@
 package app.krafted.nightmarehorde.game.systems
 
+import androidx.compose.ui.graphics.Color
 import app.krafted.nightmarehorde.engine.core.Entity
 import app.krafted.nightmarehorde.engine.core.GameLoop
 import app.krafted.nightmarehorde.engine.core.GameSystem
@@ -41,6 +42,23 @@ class WeaponSystem(
 
     companion object {
         const val DEBUG_INFINITE_AMMO = true
+
+        // Flame particle colors — random pick for organic fire look
+        private val FLAME_COLORS = listOf(
+            Color(0xFFFF4500),  // OrangeRed
+            Color(0xFFFF6600),  // Deep orange
+            Color(0xFFFF8800),  // Orange
+            Color(0xFFFFAA00),  // Amber
+            Color(0xFFFFCC00),  // Yellow-orange
+            Color(0xFFFFDD44),  // Bright yellow
+        )
+
+        // Whip blade sweep config
+        const val WHIP_ARC_DEGREES = 180f     // Full semicircle sweep
+        const val WHIP_SEGMENT_COUNT = 12     // More segments = smoother blade arc
+        const val WHIP_HITBOX_RADIUS = 14f    // Each segment's collision radius
+        const val WHIP_BLADE_LENGTH = 28f     // Base length of each blade segment (oval width)
+        const val WHIP_BLADE_THICKNESS = 6f   // Thickness at widest point (oval height)
     }
 
     private fun fireWeapon(
@@ -57,7 +75,7 @@ class WeaponSystem(
 
         when {
             weapon.isFlame -> fireFlame(owner, weapon, transform, direction)
-            weapon.isMelee -> fireSword(owner, weapon, transform, direction)
+            weapon.isMelee -> fireWhipSweep(owner, weapon, transform, direction)
             else -> fireStandard(owner, weapon, transform, direction)
         }
     }
@@ -82,7 +100,6 @@ class WeaponSystem(
             val spread = startAngle + (angleStep * i)
             val finalDirection = if (count > 1) direction.rotate(spread) else direction
 
-            // Direction angle in radians for transform rotation
             val projectile = ProjectileEntity(
                 x = transform.x,
                 y = transform.y,
@@ -90,12 +107,16 @@ class WeaponSystem(
                 speed = weapon.projectileSpeed,
                 damage = weapon.damage,
                 ownerId = owner.id,
-                lifeTime = weapon.range / weapon.projectileSpeed // Convert range to lifetime
+                lifeTime = weapon.range / weapon.projectileSpeed
             )
             gameLoop.addEntity(projectile)
         }
     }
 
+    /**
+     * Flamethrower: fires orange/red/yellow particle projectiles in a cone.
+     * Each particle is a fading colored circle that deals damage and pierces enemies.
+     */
     private fun fireFlame(
         owner: Entity,
         weapon: Weapon,
@@ -107,37 +128,90 @@ class WeaponSystem(
         val finalDirection = direction.rotate(randomSpread)
 
         // Slight speed variation for organic flame look
-        val speedVariation = weapon.projectileSpeed * (0.8f + random.nextFloat() * 0.4f)
+        val speedVariation = weapon.projectileSpeed * (0.7f + random.nextFloat() * 0.6f)
+
+        // Random fire color for each particle
+        val color = FLAME_COLORS[random.nextInt(FLAME_COLORS.size)]
+        // Vary the size for a more organic effect
+        val size = 5f + random.nextFloat() * 7f
 
         val projectile = ProjectileEntity(
-            x = transform.x + finalDirection.x * 15f, // Offset slightly forward
+            x = transform.x + finalDirection.x * 15f,
             y = transform.y + finalDirection.y * 15f,
             rotation = finalDirection.angle(),
             speed = speedVariation,
             damage = weapon.damage,
             ownerId = owner.id,
-            lifeTime = 0.6f // Short-lived flame particle
+            lifeTime = 0.5f,
+            penetrating = true,
+            colliderRadius = 8f,
+            particleColor = color,    // Renders as fire circle, not bullet sprite
+            particleSize = size
         )
         gameLoop.addEntity(projectile)
     }
 
-    private fun fireSword(
+    /**
+     * VS-style whip blade sweep: spawns a wide arc of elongated blade segments
+     * around the facing direction. Each segment is a thin, rotated oval oriented
+     * tangent to the arc — together they form a curved slash like Vampire Survivors'
+     * whip. Segments taper: thicker/longer at the middle of the arc, thinner at edges.
+     */
+    private fun fireWhipSweep(
         owner: Entity,
         weapon: Weapon,
         transform: TransformComponent,
         direction: Vector2
     ) {
-        // VS-style sword slash: ONE large horizontal slash on the facing side of the player.
-        val offsetDist = weapon.range
-        val projectile = ProjectileEntity(
-            x = transform.x + direction.x * offsetDist,
-            y = transform.y + direction.y * offsetDist,
-            rotation = direction.angle(),
-            speed = 0f, // Stationary slash
-            damage = weapon.damage,
-            ownerId = owner.id,
-            lifeTime = 0.25f // Brief flash
-        )
-        gameLoop.addEntity(projectile)
+        val halfArc = WHIP_ARC_DEGREES / 2f
+        val angleStep = WHIP_ARC_DEGREES / (WHIP_SEGMENT_COUNT - 1).coerceAtLeast(1)
+        val reachDistance = weapon.range
+
+        for (i in 0 until WHIP_SEGMENT_COUNT) {
+            val sweepAngle = -halfArc + angleStep * i
+            val segDirection = direction.rotate(sweepAngle)
+
+            // Normalized position along the arc [0..1], with 0.5 = center
+            val t = i.toFloat() / (WHIP_SEGMENT_COUNT - 1).coerceAtLeast(1)
+
+            // Distance from player increases along the arc — curved reach
+            val segDistance = reachDistance * (0.65f + 0.35f * t)
+
+            // Taper: segments at the center of the arc are larger, edges are thinner
+            // Uses a bell curve peaking at t=0.5
+            val taper = 1f - 2f * (t - 0.5f) * (t - 0.5f)  // peak at center
+            val bladeLen = WHIP_BLADE_LENGTH * (0.5f + 0.7f * taper)
+            val bladeThick = WHIP_BLADE_THICKNESS * (0.4f + 0.8f * taper)
+
+            // Orient each segment tangent to the arc (perpendicular to segDirection)
+            // This makes the ovals lie along the curve, forming a continuous slash line
+            val tangentAngle = segDirection.angle() + (Math.PI / 2.0).toFloat()
+
+            // Color gradient: white-core at center, icy blue at edges
+            val centerBlend = taper  // 1.0 at center, 0.0 at edges
+            val color = Color(
+                red = 0.75f + 0.25f * centerBlend,
+                green = 0.88f + 0.12f * centerBlend,
+                blue = 1.0f,
+                alpha = 1.0f
+            )
+
+            val projectile = ProjectileEntity(
+                x = transform.x + segDirection.x * segDistance,
+                y = transform.y + segDirection.y * segDistance,
+                rotation = tangentAngle,
+                speed = 0f,                 // Stationary — stays where spawned
+                damage = weapon.damage,
+                ownerId = owner.id,
+                lifeTime = 0.25f,           // Brief flash
+                penetrating = true,         // Hits all enemies in the arc
+                colliderRadius = WHIP_HITBOX_RADIUS,
+                particleColor = color,
+                particleSize = 10f,         // Fallback (unused when width/height set)
+                particleWidth = bladeLen,   // Elongated oval — blade segment
+                particleHeight = bladeThick
+            )
+            gameLoop.addEntity(projectile)
+        }
     }
 }

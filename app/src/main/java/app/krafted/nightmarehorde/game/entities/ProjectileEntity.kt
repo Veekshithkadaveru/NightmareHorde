@@ -1,8 +1,10 @@
 package app.krafted.nightmarehorde.game.entities
 
+import androidx.compose.ui.graphics.Color
 import app.krafted.nightmarehorde.engine.core.Entity
 import app.krafted.nightmarehorde.engine.core.components.ColliderComponent
 import app.krafted.nightmarehorde.engine.core.components.CollisionLayer
+import app.krafted.nightmarehorde.engine.core.components.ParticleComponent
 import app.krafted.nightmarehorde.engine.core.components.ProjectileComponent
 import app.krafted.nightmarehorde.engine.core.components.SpriteComponent
 import app.krafted.nightmarehorde.engine.core.components.TransformComponent
@@ -18,7 +20,15 @@ class ProjectileEntity(
     damage: Float,
     ownerId: Long,
     lifeTime: Float = 2.0f,
-    spriteName: String = "projectile_standard"
+    spriteName: String = "projectile_standard",
+    colliderRadius: Float = 5f,
+    penetrating: Boolean = false,
+    /** If set, renders as a colored particle circle instead of a sprite */
+    particleColor: Color? = null,
+    particleSize: Float = 6f,
+    /** If > 0 (with particleColor), renders as an elongated oval (blade/slash) */
+    particleWidth: Float = 0f,
+    particleHeight: Float = 0f
 ) : Entity(id) {
 
     init {
@@ -29,11 +39,23 @@ class ProjectileEntity(
         val vy = (speed * kotlin.math.sin(rotation.toDouble())).toFloat()
         
         addComponent(VelocityComponent(vx, vy))
-        addComponent(SpriteComponent(spriteName))
+
+        // Render as either a sprite or a particle
+        if (particleColor != null) {
+            addComponent(ParticleComponent(
+                color = particleColor,
+                size = particleSize,
+                lifeTime = lifeTime,
+                fadeOut = true,
+                width = particleWidth,
+                height = particleHeight
+            ))
+        } else {
+            addComponent(SpriteComponent(spriteName))
+        }
         
-        // Fix: Use correct Collider factory methods and CollisionLayer
         addComponent(ColliderComponent(
-            collider = Collider.Circle(5f),
+            collider = Collider.Circle(colliderRadius),
             layer = CollisionLayer.PROJECTILE,
             isTrigger = true
         ))
@@ -41,6 +63,7 @@ class ProjectileEntity(
         addComponent(ProjectileComponent(
             damage = damage,
             ownerId = ownerId,
+            penetrating = penetrating,
             maxLifetime = lifeTime
         ))
     }
