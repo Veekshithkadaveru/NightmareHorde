@@ -2,12 +2,13 @@ package app.krafted.nightmarehorde.game.weapons
 
 class FlamethrowerWeapon : Weapon(
     name = "Flamethrower",
-    damage = 10f,         // 2x close-range bonus — burns fast when up close
-    fireRate = 10f,        // 10 ticks/sec — continuous fire stream
-    range = 120f,          // Short range — risky close combat
-    projectileSpeed = 200f,
-    maxAmmo = 100,
-    spreadAngle = 25f,     // Wide cone
-    penetrating = true,    // Pierces through enemies
-    type = WeaponType.FLAMETHROWER
+    damage = 15f,           // High damage — late-game devastation
+    fireRate = 15f,         // 15 particles/sec — dense flame stream
+    range = 300f,           // Medium range — VS-style fire reach
+    projectileSpeed = 350f, // Fast flames travel further before dying
+    maxAmmo = 200,          // Large ammo pool to sustain high fire rate
+    spreadAngle = 20f,      // Focused cone of destruction
+    penetrating = true,     // Pierces through enemies
+    type = WeaponType.FLAMETHROWER,
+    isFlame = true
 )

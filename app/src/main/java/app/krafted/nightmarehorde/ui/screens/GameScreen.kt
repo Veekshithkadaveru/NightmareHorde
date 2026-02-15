@@ -1,10 +1,19 @@
 package app.krafted.nightmarehorde.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -12,12 +21,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -29,11 +40,10 @@ import app.krafted.nightmarehorde.engine.input.VirtualJoystick
 import app.krafted.nightmarehorde.engine.input.detectGameGestures
 import app.krafted.nightmarehorde.engine.rendering.GameSurface
 import app.krafted.nightmarehorde.game.data.CharacterType
+import app.krafted.nightmarehorde.game.weapons.WeaponType
 import app.krafted.nightmarehorde.ui.components.HealthBar
+import kotlinx.coroutines.delay
 
-/**
- * Main game screen that displays the game world and HUD.
- */
 @Composable
 fun GameScreen(
     characterType: CharacterType = CharacterType.CYBERPUNK_DETECTIVE,
@@ -41,25 +51,39 @@ fun GameScreen(
     modifier: Modifier = Modifier
 ) {
     val playerHealth by viewModel.playerHealth.collectAsState()
-    val currentWeaponName by viewModel.currentWeaponName.collectAsState()
     val kills by viewModel.killCount.collectAsState()
     val gameTimeSec by viewModel.gameTime.collectAsState()
+    val unlockedWeapons by viewModel.unlockedWeapons.collectAsState()
+    val activeWeaponType by viewModel.activeWeaponType.collectAsState()
+    val currentAmmo by viewModel.currentAmmo.collectAsState()
+    val weaponUnlockNotification by viewModel.weaponUnlockNotification.collectAsState()
     val scope = rememberCoroutineScope()
 
-    // Frame tick counter — increments every vsync to force Canvas redraws
     var frameTick by remember { mutableIntStateOf(0) }
 
-    // Create gesture handler for tap/double-tap detection
     val gestureHandler = remember(viewModel.inputManager, scope) {
         GestureHandler(viewModel.inputManager, scope)
     }
 
-    // Lifecycle management
+    // Auto-dismiss weapon unlock notification after 2 seconds
+    var showUnlockBanner by remember { mutableStateOf(false) }
+    var unlockBannerText by remember { mutableStateOf("") }
+
+    LaunchedEffect(weaponUnlockNotification) {
+        val notification = weaponUnlockNotification
+        if (notification != null) {
+            unlockBannerText = "${getWeaponDisplayName(notification)} Unlocked!"
+            showUnlockBanner = true
+            delay(2000)
+            showUnlockBanner = false
+            viewModel.dismissWeaponNotification()
+        }
+    }
+
     LaunchedEffect(Unit) {
         viewModel.startGame(characterType)
     }
 
-    // Drive frame-by-frame rendering — this is the game render loop
     LaunchedEffect(Unit) {
         while (true) {
             withFrameNanos { }
@@ -75,11 +99,9 @@ fun GameScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        // Game surface — entitiesProvider reads fresh data each frame
+        // Game surface
         GameSurface(
             entitiesProvider = {
-                // Read frameTick to establish a Compose state dependency
-                // so the Canvas re-renders every vsync
                 frameTick
                 viewModel.gameLoop.getEntitiesSnapshot()
             },
@@ -129,14 +151,73 @@ fun GameScreen(
                 .padding(16.dp)
         )
 
-        // Debug Weapon Selector (below timer)
-        Button(
-            onClick = { viewModel.debugCycleWeapon() },
+        // Weapon Bar (top center, below timer)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 44.dp)
+                .padding(top = 40.dp)
         ) {
-            Text(text = "Weapon: $currentWeaponName")
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                unlockedWeapons.forEach { weaponType ->
+                    val isActive = weaponType == activeWeaponType
+                    val bgColor = if (isActive) Color(0xFF444444) else Color(0xFF222222)
+                    val borderColor = if (isActive) Color(0xFFFFCC00) else Color(0xFF666666)
+
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(width = 44.dp, height = 28.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(bgColor)
+                            .border(1.5.dp, borderColor, RoundedCornerShape(6.dp))
+                            .clickable { viewModel.switchWeapon(weaponType) }
+                    ) {
+                        Text(
+                            text = getWeaponAbbreviation(weaponType),
+                            color = if (isActive) Color(0xFFFFCC00) else Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+
+            // Ammo display
+            Text(
+                text = if (currentAmmo == -1) "\u221E" else "$currentAmmo",
+                color = if (currentAmmo in 1..5) Color(0xFFFF4444) else Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+
+        // Weapon unlock notification banner
+        AnimatedVisibility(
+            visible = showUnlockBanner,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(bottom = 100.dp)
+        ) {
+            Text(
+                text = unlockBannerText,
+                color = Color(0xFFFFCC00),
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .background(
+                        Color(0xCC000000),
+                        RoundedCornerShape(8.dp)
+                    )
+                    .padding(horizontal = 24.dp, vertical = 12.dp)
+            )
         }
 
         // Virtual Joystick - bottom left corner
@@ -146,5 +227,27 @@ fun GameScreen(
                 .align(Alignment.BottomStart)
                 .padding(24.dp)
         )
+    }
+}
+
+private fun getWeaponAbbreviation(type: WeaponType): String {
+    return when (type) {
+        WeaponType.PISTOL -> "PST"
+        WeaponType.MELEE -> "WHP"
+        WeaponType.SHOTGUN -> "SHG"
+        WeaponType.ASSAULT_RIFLE -> "AR"
+        WeaponType.SMG -> "SMG"
+        WeaponType.FLAMETHROWER -> "FLM"
+    }
+}
+
+private fun getWeaponDisplayName(type: WeaponType): String {
+    return when (type) {
+        WeaponType.PISTOL -> "Pistol"
+        WeaponType.MELEE -> "Whip Blade"
+        WeaponType.SHOTGUN -> "Shotgun"
+        WeaponType.ASSAULT_RIFLE -> "Assault Rifle"
+        WeaponType.SMG -> "SMG"
+        WeaponType.FLAMETHROWER -> "Flamethrower"
     }
 }

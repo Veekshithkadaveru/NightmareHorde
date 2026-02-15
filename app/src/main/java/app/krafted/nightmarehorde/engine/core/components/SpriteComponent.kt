@@ -35,5 +35,7 @@ data class SpriteComponent(
     /** Alpha transparency (0 = invisible, 1 = opaque) */
     var alpha: Float = 1f,
     /** If true, sprite fills the entire viewport (ignores width/height) */
-    var fillViewport: Boolean = false
+    var fillViewport: Boolean = false,
+    /** Total number of animation frames in this sprite sheet (0 = unknown/static) */
+    var totalFrames: Int = 0
 ) : Component

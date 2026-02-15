@@ -33,17 +33,17 @@ todos:
       - player
   - id: combat
     content: Implement auto-aim, projectiles, and damage system
-    status: pending
+    status: completed
     dependencies:
       - weapons
   - id: enemies
     content: Create 7 zombie types with unique AI behaviors
-    status: pending
+    status: completed
     dependencies:
       - combat
   - id: spawning
     content: Build wave spawner with difficulty scaling
-    status: pending
+    status: completed
     dependencies:
       - enemies
   - id: turrets
@@ -150,11 +150,11 @@ todos:
 ### 🎮 Phase B: Player & Combat
 - [x] **B1: Player Entity** <!-- id: player -->
 - [x] **B2: Weapon System** <!-- id: weapons -->
-- [ ] **B3: Combat Mechanics** <!-- id: combat -->
+- [x] **B3: Combat Mechanics** <!-- id: combat -->
 
 ### 🧟 Phase C: Enemies & Waves
-- [ ] **C1: Zombie Types** <!-- id: enemies -->
-- [ ] **C2: Wave Spawning** <!-- id: spawning -->
+- [x] **C1: Zombie Types** <!-- id: enemies -->
+- [x] **C2: Wave Spawning** <!-- id: spawning -->
 - [ ] **C3: Day/Night Cycle** <!-- id: day-night -->
 - [ ] **C4: Boss Battles** <!-- id: bosses -->
 
