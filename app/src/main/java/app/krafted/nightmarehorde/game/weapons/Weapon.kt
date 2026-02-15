@@ -17,15 +17,13 @@ abstract class Weapon(
     val projectileCount: Int = 1,
     val spreadAngle: Float = 0f, // Total spread angle in degrees
     val penetrating: Boolean = false,
-    val type: WeaponType
+    val type: WeaponType,
+    /** Whether this weapon uses flame-style particle firing (cone of fire particles). */
+    val isFlame: Boolean = false,
+    /** Whether this weapon uses melee-style arc sweep (whip blade). */
+    val isMelee: Boolean = false
 ) {
     private var cooldownTimer: Float = 0f
-
-    val isFlame: Boolean
-        get() = type == WeaponType.FLAMETHROWER
-        
-    val isMelee: Boolean
-        get() = type == WeaponType.MELEE
 
     fun tickCooldown(deltaTime: Float) {
         if (cooldownTimer > 0f) {

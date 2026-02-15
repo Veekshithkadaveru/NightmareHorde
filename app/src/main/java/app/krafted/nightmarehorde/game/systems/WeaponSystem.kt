@@ -7,8 +7,10 @@ import app.krafted.nightmarehorde.engine.core.GameSystem
 import app.krafted.nightmarehorde.engine.core.Vector2
 import app.krafted.nightmarehorde.engine.core.components.TransformComponent
 import app.krafted.nightmarehorde.engine.core.components.WeaponComponent
+import app.krafted.nightmarehorde.engine.core.components.WeaponInventoryComponent
 import app.krafted.nightmarehorde.game.entities.ProjectileEntity
 import app.krafted.nightmarehorde.game.weapons.Weapon
+import app.krafted.nightmarehorde.game.weapons.WeaponType
 
 class WeaponSystem(
     private val gameLoop: GameLoop
@@ -19,29 +21,44 @@ class WeaponSystem(
             val weaponComp = entity.getComponent(WeaponComponent::class) ?: return@forEach
             val transform = entity.getComponent(TransformComponent::class) ?: return@forEach
 
-            val weapon = weaponComp.equippedWeapon ?: return@forEach
+            // Use inventory if available, otherwise fall back to WeaponComponent
+            val inventory = entity.getComponent(WeaponInventoryComponent::class)
+            val weapon = if (inventory != null) {
+                val activeWeapon = inventory.getActiveWeapon() ?: return@forEach
+                weaponComp.equippedWeapon = activeWeapon
+                activeWeapon
+            } else {
+                weaponComp.equippedWeapon ?: return@forEach
+            }
 
-            // Always tick cooldown every frame
             weapon.tickCooldown(deltaTime)
-
-            // Only fire when cooldown has expired
             if (!weapon.isReady()) return@forEach
 
-            // Use facing direction set by PlayerSystem (persists last aim when standing still)
             val direction = weaponComp.facingDirection
-            // Guard against zero-length direction (should not happen, but prevents invisible projectiles)
             if (direction.lengthSquared() < 0.001f) return@forEach
 
-            // Fire!
-            fireWeapon(entity, weapon, transform, direction, weaponComp)
+            // Check ammo via inventory
+            if (inventory != null && !weapon.infiniteAmmo) {
+                val slot = inventory.getActiveSlot()
+                if (slot != null && slot.currentAmmo <= 0) {
+                    inventory.fallbackToDefault()
+                    weaponComp.equippedWeapon = inventory.getActiveWeapon()
+                    onAmmoEmpty?.invoke(weapon.type)
+                    return@forEach
+                }
+            }
+
+            fireWeapon(entity, weapon, transform, direction, inventory)
             weapon.resetCooldown()
         }
     }
     
     private val random = java.util.Random()
 
+    var onAmmoEmpty: ((WeaponType) -> Unit)? = null
+
     companion object {
-        const val DEBUG_INFINITE_AMMO = true
+        const val DEBUG_INFINITE_AMMO = false
 
         // Flame particle colors — random pick for organic fire look
         private val FLAME_COLORS = listOf(
@@ -66,11 +83,16 @@ class WeaponSystem(
         weapon: Weapon,
         transform: TransformComponent,
         direction: Vector2,
-        weaponComp: WeaponComponent
+        inventory: WeaponInventoryComponent?
     ) {
-        if (!DEBUG_INFINITE_AMMO && !weapon.infiniteAmmo) {
-            if (weaponComp.currentAmmo <= 0) return
-            weaponComp.currentAmmo--
+        if (!weapon.infiniteAmmo) {
+            if (inventory != null) {
+                if (!inventory.consumeAmmo(weapon.type)) return
+            } else if (!DEBUG_INFINITE_AMMO) {
+                val weaponComp = owner.getComponent(WeaponComponent::class) ?: return
+                if (weaponComp.currentAmmo <= 0) return
+                weaponComp.currentAmmo--
+            }
         }
 
         when {
@@ -127,24 +149,24 @@ class WeaponSystem(
         val randomSpread = (random.nextFloat() - 0.5f) * weapon.spreadAngle
         val finalDirection = direction.rotate(randomSpread)
 
-        // Slight speed variation for organic flame look
-        val speedVariation = weapon.projectileSpeed * (0.7f + random.nextFloat() * 0.6f)
+        // Slight speed variation for cohesive flame stream
+        val speedVariation = weapon.projectileSpeed * (0.8f + random.nextFloat() * 0.4f)
 
         // Random fire color for each particle
         val color = FLAME_COLORS[random.nextInt(FLAME_COLORS.size)]
-        // Vary the size for a more organic effect
-        val size = 5f + random.nextFloat() * 7f
+        // Bigger flame particles for devastating visual
+        val size = 8f + random.nextFloat() * 10f
 
         val projectile = ProjectileEntity(
-            x = transform.x + finalDirection.x * 15f,
-            y = transform.y + finalDirection.y * 15f,
+            x = transform.x + finalDirection.x * 20f,
+            y = transform.y + finalDirection.y * 20f,
             rotation = finalDirection.angle(),
             speed = speedVariation,
             damage = weapon.damage,
             ownerId = owner.id,
-            lifeTime = 0.5f,
+            lifeTime = 0.85f,
             penetrating = true,
-            colliderRadius = 8f,
+            colliderRadius = 14f,
             particleColor = color,    // Renders as fire circle, not bullet sprite
             particleSize = size
         )

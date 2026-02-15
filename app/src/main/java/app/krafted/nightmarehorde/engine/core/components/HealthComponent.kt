@@ -52,9 +52,10 @@ class HealthComponent(
 
     /**
      * Heal the entity, clamped to max health.
+     * Negative amounts are ignored for safety.
      */
     fun heal(amount: Int) {
-        if (!isAlive) return
+        if (!isAlive || amount <= 0) return
         currentHealth = (currentHealth + amount).coerceAtMost(maxHealth)
     }
 

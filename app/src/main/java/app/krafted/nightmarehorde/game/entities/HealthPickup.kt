@@ -1,31 +1,20 @@
 package app.krafted.nightmarehorde.game.entities
 
-import androidx.compose.ui.graphics.Color
 import app.krafted.nightmarehorde.engine.core.Entity
-import app.krafted.nightmarehorde.engine.core.components.AmmoPickupComponent
 import app.krafted.nightmarehorde.engine.core.components.ColliderComponent
 import app.krafted.nightmarehorde.engine.core.components.CollisionLayer
+import app.krafted.nightmarehorde.engine.core.components.HealthPickupComponent
 import app.krafted.nightmarehorde.engine.core.components.PickupTagComponent
 import app.krafted.nightmarehorde.engine.core.components.SpriteComponent
 import app.krafted.nightmarehorde.engine.core.components.TransformComponent
 import app.krafted.nightmarehorde.engine.core.components.VelocityComponent
-import app.krafted.nightmarehorde.game.weapons.WeaponType
 
-object AmmoPickup {
+object HealthPickup {
     fun create(
         x: Float,
         y: Float,
-        amount: Int = 20,
-        weaponType: WeaponType? = null
+        healAmount: Int = 10
     ): Entity {
-        val (textureKey, tint) = when (weaponType) {
-            WeaponType.ASSAULT_RIFLE -> "pickup_orb_yellow" to Color.White
-            WeaponType.SHOTGUN -> "pickup_orb_yellow" to Color(0xFFFF8800)
-            WeaponType.SMG -> "pickup_orb_blue" to Color.White
-            WeaponType.FLAMETHROWER -> "pickup_orb_red" to Color.White
-            else -> "pickup_orb_yellow" to Color.White
-        }
-
         return Entity().apply {
             addComponent(TransformComponent(x = x, y = y, scale = 2f))
             addComponent(VelocityComponent())
@@ -37,24 +26,16 @@ object AmmoPickup {
             collider.isTrigger = true
             addComponent(collider)
 
-            val totalFrames = when (textureKey) {
-                "pickup_orb_green" -> 12
-                "pickup_orb_yellow" -> 9
-                "pickup_orb_red" -> 8
-                "pickup_orb_blue" -> 5
-                else -> 1
-            }
             addComponent(SpriteComponent(
-                textureKey = textureKey,
+                textureKey = "pickup_orb_green",
                 layer = 1,
                 frameWidth = 16,
                 frameHeight = 16,
                 currentFrame = 0,
-                tint = tint,
-                totalFrames = totalFrames
+                totalFrames = 12
             ))
 
-            addComponent(AmmoPickupComponent(amount = amount, weaponType = weaponType))
+            addComponent(HealthPickupComponent(healAmount = healAmount))
             addComponent(PickupTagComponent(baseY = y))
         }
     }

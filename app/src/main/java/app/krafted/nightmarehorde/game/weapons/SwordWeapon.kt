@@ -9,5 +9,6 @@ class SwordWeapon : Weapon(
     maxAmmo = 0,
     infiniteAmmo = true,
     penetrating = true,    // Cleaves through all enemies in the arc
-    type = WeaponType.MELEE
+    type = WeaponType.MELEE,
+    isMelee = true
 )

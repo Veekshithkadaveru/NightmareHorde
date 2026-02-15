@@ -11,8 +11,10 @@ import app.krafted.nightmarehorde.engine.core.components.StatsComponent
 import app.krafted.nightmarehorde.engine.core.components.TransformComponent
 import app.krafted.nightmarehorde.engine.core.components.VelocityComponent
 import app.krafted.nightmarehorde.engine.core.components.WeaponComponent
+import app.krafted.nightmarehorde.engine.core.components.WeaponInventoryComponent
 import app.krafted.nightmarehorde.game.data.CharacterType
 import app.krafted.nightmarehorde.game.weapons.PistolWeapon
+import app.krafted.nightmarehorde.game.weapons.SwordWeapon
 
 /**
  * Factory for creating the player entity with all required components.
@@ -60,12 +62,17 @@ object PlayerEntity {
                 animationKey = "idle"
             ))
 
-            // Start with Pistol (Phase B2)
+            // Start with Pistol + Whip Blade (both default, infinite ammo)
             addComponent(WeaponComponent(
                 equippedWeapon = PistolWeapon(),
                 currentAmmo = 0,
                 totalAmmo = 0
             ))
+
+            addComponent(WeaponInventoryComponent().apply {
+                addWeapon(PistolWeapon())
+                addWeapon(SwordWeapon())
+            })
 
             addComponent(HealthComponent(
                 maxHealth = stats.maxHealth
