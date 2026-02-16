@@ -7,6 +7,7 @@ import app.krafted.nightmarehorde.engine.core.Entity
 import app.krafted.nightmarehorde.engine.core.GameLoop
 import app.krafted.nightmarehorde.engine.core.components.AIBehavior
 import app.krafted.nightmarehorde.engine.core.components.AIComponent
+import app.krafted.nightmarehorde.engine.core.components.BossComponent
 import app.krafted.nightmarehorde.engine.core.components.HealthComponent
 import app.krafted.nightmarehorde.engine.core.components.SpriteComponent
 import app.krafted.nightmarehorde.engine.core.components.StatsComponent
@@ -24,12 +25,18 @@ import app.krafted.nightmarehorde.engine.rendering.SpriteRenderer
 import app.krafted.nightmarehorde.game.data.AssetManager
 import app.krafted.nightmarehorde.game.data.CharacterType
 import app.krafted.nightmarehorde.game.data.ObstacleType
+import app.krafted.nightmarehorde.game.data.BossType
 import app.krafted.nightmarehorde.game.data.ZombieType
+import app.krafted.nightmarehorde.game.entities.AmmoPickup
+import app.krafted.nightmarehorde.game.entities.BossEntity
+import app.krafted.nightmarehorde.game.entities.HealthPickup
 import app.krafted.nightmarehorde.game.entities.HitEffectEntity
 import app.krafted.nightmarehorde.game.entities.PlayerEntity
 import app.krafted.nightmarehorde.engine.rendering.LightingSystem
 import app.krafted.nightmarehorde.game.systems.AISystem
 import app.krafted.nightmarehorde.game.systems.AutoAimSystem
+import app.krafted.nightmarehorde.game.systems.BossAnimationSystem
+import app.krafted.nightmarehorde.game.systems.BossSystem
 import app.krafted.nightmarehorde.game.systems.CombatSystem
 import app.krafted.nightmarehorde.game.systems.DamagePopupSystem
 import app.krafted.nightmarehorde.game.systems.DayNightCycle
@@ -107,6 +114,18 @@ class GameViewModel @Inject constructor(
     /** LightingSystem for the rendering overlay — read by GameScreen. */
     val lightingSystem = LightingSystem()
 
+    // ─── Boss HUD State ────────────────────────────────────────────────
+    data class BossState(
+        val isActive: Boolean = false,
+        val name: String = "",
+        val currentHealth: Int = 0,
+        val maxHealth: Int = 0,
+        val accentColor: Long = 0xFFFF4444
+    )
+
+    private val _bossState = MutableStateFlow(BossState())
+    val bossState: StateFlow<BossState> = _bossState.asStateFlow()
+
     // ─── Internal State ───────────────────────────────────────────────────
 
     private var isGameRunning = false
@@ -119,6 +138,21 @@ class GameViewModel @Inject constructor(
     private var spawnJob: Job? = null
     /** Reference to HUD observer coroutine for clean cancellation. */
     private var hudObserverJob: Job? = null
+
+    // ─── Boss State ────────────────────────────────────────────────────
+    private var activeBossEntity: Entity? = null
+    private var bossesDefeated: Int = 0
+    private var lastBossSpawnTime: Float = 0f
+    private var isBossFightActive: Boolean = false
+
+    companion object {
+        /** Boss spawns every 5 minutes (300 seconds) */
+        const val BOSS_SPAWN_INTERVAL = 300f
+        /** Distance from the player at which a boss spawns */
+        const val BOSS_SPAWN_DISTANCE = 500f
+        /** Number of guaranteed loot drops on boss death */
+        const val BOSS_LOOT_DROP_COUNT = 6
+    }
 
     // ─── Game Lifecycle ───────────────────────────────────────────────────
 
@@ -139,7 +173,13 @@ class GameViewModel @Inject constructor(
             "pickup_orb_green",
             "pickup_orb_yellow",
             "pickup_orb_red",
-            "pickup_orb_blue"
+            "pickup_orb_blue",
+            // Boss assets
+            "boss_idle",
+            "boss_hive_queen",
+            "boss_abomination",
+            "boss_thrust",
+            "boss_bolt"
         )
 
         val spatialGrid = SpatialHashGrid()
@@ -180,10 +220,17 @@ class GameViewModel @Inject constructor(
 
         gameLoop.addSystem(PlayerAnimationSystem())
         gameLoop.addSystem(zombieAnimationSystem)
+        gameLoop.addSystem(BossAnimationSystem())
 
         aiSystem.onSpawnEntity = { entity -> gameLoop.addEntity(entity) }
         aiSystem.dayNightCycle = cycle
         gameLoop.addSystem(aiSystem)
+
+        // BossSystem (priority 19): boss AI — runs right after regular AI
+        val bossSystem = BossSystem().apply {
+            onSpawnEntity = { entity -> gameLoop.addEntity(entity) }
+        }
+        gameLoop.addSystem(bossSystem)
 
         gameLoop.addSystem(AutoAimSystem())
 
@@ -216,6 +263,8 @@ class GameViewModel @Inject constructor(
         // CombatSystem (100): handle projectile-enemy collisions + death effects
         val combatSystem = CombatSystem(gameLoop).apply {
             onEnemyDeath = { deadEntity -> handleEnemyDeath(deadEntity) }
+            // Wire melee retaliation: when a melee projectile hits a boss, BossSystem may counter-attack
+            onBossMeleeHit = { bossEntity -> bossSystem.handleMeleeRetaliation(bossEntity) }
         }
         gameLoop.addSystem(combatSystem)
 
@@ -238,6 +287,7 @@ class GameViewModel @Inject constructor(
         gameLoop.addEntity(playerEntity!!)
 
         aiSystem.setPlayer(playerEntity!!)
+        bossSystem.setPlayer(playerEntity!!)
 
         gameLoop.start(viewModelScope)
 
@@ -253,6 +303,20 @@ class GameViewModel @Inject constructor(
                 waveSpawner.tick()
                 _gameTime.value = waveSpawner.elapsedGameTime
 
+                // ─── Boss Spawn Check ──────────────────────────────────
+                checkBossSpawn()
+
+                // If a boss fight is active, pause normal zombie spawning
+                if (isBossFightActive) {
+                    // Still despawn distant zombies during boss fight
+                    val pt = playerEntity?.getComponent(TransformComponent::class)
+                    if (pt != null) {
+                        waveSpawner.despawnDistantZombies(pt)
+                    }
+                    continue
+                }
+
+                // ─── Normal Zombie Spawning ────────────────────────────
                 // Refresh zombie count once per tick (not per batch spawn)
                 waveSpawner.refreshZombieCount()
                 val maxEnemies = waveSpawner.calculateMaxEnemies()
@@ -301,6 +365,9 @@ class GameViewModel @Inject constructor(
                     )
                 }
 
+                // Update boss HUD state
+                updateBossHudState()
+
                 kotlinx.coroutines.delay(16)
             }
         }
@@ -324,6 +391,11 @@ class GameViewModel @Inject constructor(
         inputManager.reset()
         playerEntity = null
         dayNightCycle = null
+        activeBossEntity = null
+        isBossFightActive = false
+        bossesDefeated = 0
+        lastBossSpawnTime = 0f
+        _bossState.value = BossState()
     }
 
     // ─── Weapon Switching (delegated) ─────────────────────────────────────
@@ -362,6 +434,12 @@ class GameViewModel @Inject constructor(
         if (ai?.behavior == AIBehavior.EXPLODE) {
             handleBloaterExplosion(deadEntity)
         }
+
+        // Boss death handling
+        val bossComp = deadEntity.getComponent(BossComponent::class)
+        if (bossComp != null) {
+            handleBossDeath(deadEntity, bossComp)
+        }
     }
 
     private fun handleBloaterExplosion(deadEntity: Entity) {
@@ -395,5 +473,153 @@ class GameViewModel @Inject constructor(
             lifeTime = 0.5f,
             size = 10f
         ).forEach { gameLoop.addEntity(it) }
+    }
+
+    // ─── Boss Management ───────────────────────────────────────────────
+
+    /**
+     * Check if it's time to spawn a boss.
+     * First boss at 5 minutes, then every 5 minutes after the previous one is defeated.
+     */
+    private fun checkBossSpawn() {
+        if (isBossFightActive) return
+
+        val elapsed = waveSpawner.elapsedGameTime
+        val timeSinceLastBoss = elapsed - lastBossSpawnTime
+
+        // First boss at BOSS_SPAWN_INTERVAL, subsequent bosses also at BOSS_SPAWN_INTERVAL after defeat
+        if (timeSinceLastBoss >= BOSS_SPAWN_INTERVAL) {
+            spawnBoss()
+        }
+    }
+
+    private fun spawnBoss() {
+        val playerTransform = playerEntity?.getComponent(TransformComponent::class) ?: return
+
+        // Cycle through boss types weakest→strongest: Hive Queen → Tank → Abomination → repeat
+        val bossTypes = BossType.entries
+        val bossType = bossTypes[bossesDefeated % bossTypes.size]
+        val bossNumber = bossesDefeated + 1
+
+        // Spawn boss off-screen at a random angle
+        val angle = kotlin.random.Random.nextFloat() * 2f * Math.PI.toFloat()
+        val spawnX = playerTransform.x + kotlin.math.cos(angle) * BOSS_SPAWN_DISTANCE
+        val spawnY = playerTransform.y + kotlin.math.sin(angle) * BOSS_SPAWN_DISTANCE
+
+        val boss = BossEntity(
+            x = spawnX,
+            y = spawnY,
+            type = bossType,
+            bossNumber = bossNumber
+        )
+        gameLoop.addEntity(boss)
+        activeBossEntity = boss
+        isBossFightActive = true
+
+        Log.d("GameViewModel", "Boss spawned: ${bossType.displayName} (#$bossNumber)")
+    }
+
+    private fun handleBossDeath(deadEntity: Entity, bossComp: BossComponent) {
+        bossesDefeated++
+        isBossFightActive = false
+        activeBossEntity = null
+        lastBossSpawnTime = waveSpawner.elapsedGameTime
+
+        val transform = deadEntity.getComponent(TransformComponent::class)
+        if (transform != null) {
+            // Big death explosion effect
+            HitEffectEntity.burst(
+                x = transform.x,
+                y = transform.y,
+                count = 25,
+                baseColor = androidx.compose.ui.graphics.Color(0xFFFF4444),
+                speed = 300f,
+                lifeTime = 0.8f,
+                size = 14f
+            ).forEach { gameLoop.addEntity(it) }
+
+            // Secondary green burst
+            HitEffectEntity.burst(
+                x = transform.x,
+                y = transform.y,
+                count = 15,
+                baseColor = androidx.compose.ui.graphics.Color(0xFF44FF88),
+                speed = 200f,
+                lifeTime = 0.6f,
+                size = 10f
+            ).forEach { gameLoop.addEntity(it) }
+
+            // Significant reward drops — bosses guarantee health + ammo in a ring
+            spawnBossRewards(transform.x, transform.y)
+        }
+
+        Log.d("GameViewModel", "Boss defeated: ${bossComp.bossType.displayName}. Total defeated: $bossesDefeated")
+    }
+
+    /**
+     * Spawns guaranteed reward pickups in a ring around the boss death position.
+     * Half health, half ammo — fulfills the "significant rewards" exit criterion.
+     */
+    private fun spawnBossRewards(x: Float, y: Float) {
+        val inventory = playerEntity?.getComponent(WeaponInventoryComponent::class)
+        val ammoTypes = listOf(
+            WeaponType.ASSAULT_RIFLE,
+            WeaponType.SHOTGUN,
+            WeaponType.SMG,
+            WeaponType.FLAMETHROWER
+        )
+        val droppableAmmo = inventory?.getUnlockedTypes()?.filter { it in ammoTypes } ?: emptyList()
+
+        for (i in 0 until BOSS_LOOT_DROP_COUNT) {
+            val angle = (i.toFloat() / BOSS_LOOT_DROP_COUNT) * 2f * Math.PI.toFloat()
+            val dist = 40f + kotlin.random.Random.nextFloat() * 30f
+            val dropX = x + kotlin.math.cos(angle) * dist
+            val dropY = y + kotlin.math.sin(angle) * dist
+
+            if (i < BOSS_LOOT_DROP_COUNT / 2) {
+                // Health pickups (larger heal than normal drops)
+                gameLoop.addEntity(HealthPickup.create(x = dropX, y = dropY, healAmount = 20))
+            } else if (droppableAmmo.isNotEmpty()) {
+                // Ammo pickups — cycle through unlocked ammo types
+                val weaponType = droppableAmmo[i % droppableAmmo.size]
+                val amount = getBossAmmoAmount(weaponType)
+                gameLoop.addEntity(AmmoPickup.create(x = dropX, y = dropY, amount = amount, weaponType = weaponType))
+            } else {
+                // Fallback to health if no ammo weapons are unlocked
+                gameLoop.addEntity(HealthPickup.create(x = dropX, y = dropY, healAmount = 20))
+            }
+        }
+    }
+
+    private fun getBossAmmoAmount(type: WeaponType): Int {
+        return when (type) {
+            WeaponType.ASSAULT_RIFLE -> 20
+            WeaponType.SHOTGUN -> 6
+            WeaponType.SMG -> 25
+            WeaponType.FLAMETHROWER -> 40
+            else -> 15
+        }
+    }
+
+    private fun updateBossHudState() {
+        val boss = activeBossEntity
+        if (boss != null && boss.isActive) {
+            val health = boss.getComponent(HealthComponent::class)
+            val bossComp = boss.getComponent(BossComponent::class)
+            if (health != null && bossComp != null) {
+                _bossState.value = BossState(
+                    isActive = true,
+                    name = bossComp.bossType.displayName,
+                    currentHealth = health.currentHealth,
+                    maxHealth = health.maxHealth,
+                    accentColor = bossComp.bossType.accentColor
+                )
+                return
+            }
+        }
+        // No active boss
+        if (_bossState.value.isActive) {
+            _bossState.value = BossState()
+        }
     }
 }

@@ -10,5 +10,10 @@ enum class AIBehavior {
     EXPLODE,  // Move close and explode on death (Bloater)
     BUFF,     // Stay near allies and buff them (Screamer)
     CHARGE,   // Periodically charge at high speed (Brute)
-    FLEE
+    FLEE,
+
+    // Boss behaviors — each boss cycles through attack phases
+    BOSS_TANK,        // The Tank: ground slam, rock throw, charge
+    BOSS_HIVE_QUEEN,  // Hive Queen: spawn minions, acid spray, burrow
+    BOSS_ABOMINATION  // Abomination: multi-arm swipe, regen, enrage
 }

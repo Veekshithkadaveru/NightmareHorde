@@ -59,7 +59,7 @@ todos:
       - spawning
   - id: bosses
     content: Implement 3 boss types with unique attack patterns
-    status: pending
+    status: completed
     dependencies:
       - day-night
   - id: levelup
@@ -156,7 +156,7 @@ todos:
 - [x] **C1: Zombie Types** <!-- id: enemies -->
 - [x] **C2: Wave Spawning** <!-- id: spawning -->
 - [x] **C3: Day/Night Cycle** <!-- id: day-night -->
-- [ ] **C4: Boss Battles** <!-- id: bosses -->
+- [x] **C4: Boss Battles** <!-- id: bosses -->
 
 ### 🔧 Phase D: Turret System
 - [ ] **D1: Turret Defense** <!-- id: turrets -->
@@ -719,10 +719,10 @@ fun findNearestTarget(
 **HP Scaling:** `Base × (1 + 0.5 × BossNumber)`
 
 **Exit Criteria:**
-- [ ] Boss spawns every 5 minutes
-- [ ] Each boss has 3 unique attacks
-- [ ] Boss health bar displays
-- [ ] Boss drops significant rewards
+- [x] Boss spawns every 5 minutes
+- [x] Each boss has 3 unique attacks
+- [x] Boss health bar displays
+- [x] Boss drops significant rewards
 
 ---
 
