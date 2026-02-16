@@ -25,6 +25,9 @@ class WaveSpawner(
 ) {
     private val rng = Random(System.currentTimeMillis())
 
+    /** Day/Night cycle reference — provides a spawn rate multiplier during night. */
+    var dayNightCycle: DayNightCycle? = null
+
     // ─── Configuration ────────────────────────────────────────────────────
     companion object {
         const val SPAWN_DISTANCE_MIN = 450f
@@ -73,8 +76,12 @@ class WaveSpawner(
 
     fun calculateSpawnInterval(): Long {
         val progress = (elapsedGameTime / 900f).coerceIn(0f, 1f)
-        val interval = BASE_SPAWN_INTERVAL_MS -
+        val baseInterval = BASE_SPAWN_INTERVAL_MS -
                 ((BASE_SPAWN_INTERVAL_MS - MIN_SPAWN_INTERVAL_MS) * progress).toLong()
+
+        // Night: higher spawnRateMultiplier → shorter interval → more spawns
+        val nightMultiplier = dayNightCycle?.spawnRateMultiplier ?: 1f
+        val interval = (baseInterval / nightMultiplier).toLong()
         return interval.coerceAtLeast(MIN_SPAWN_INTERVAL_MS)
     }
 

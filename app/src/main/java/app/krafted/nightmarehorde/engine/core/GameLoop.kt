@@ -6,20 +6,60 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Core game loop running on [Dispatchers.Default] at a target of 60 FPS.
+ *
+ * Entity storage design
+ * ---------------------
+ * **Problem:** The previous [CopyOnWriteArrayList] copied its entire backing
+ * array on every [addEntity] and [removeAll] call.  With thousands of
+ * short-lived entities (particles, damage popups) being created and destroyed
+ * each session, this produced enormous GC pressure that led to OOM crashes on
+ * real devices after ~7 minutes of gameplay.
+ *
+ * **Solution:** Entities are now stored in a plain [ArrayList] that is only
+ * touched from the game-loop coroutine.  Cross-thread additions go through a
+ * lock-free [ConcurrentLinkedQueue] and are drained at the start of every
+ * frame.  Dead-entity cleanup uses [ArrayList.removeIf] which compacts
+ * in-place with zero temporary allocations.  A read-only snapshot is published
+ * once per frame (via @Volatile) for other threads (e.g. WaveSpawner on Main).
+ */
 @Singleton
 class GameLoop @Inject constructor() {
     private var job: Job? = null
     private val isRunning = AtomicBoolean(false)
-    
-    // Thread-safe lists for modification during iteration
+
+    // Systems rarely mutate — CopyOnWriteArrayList is fine for them
     private val systems = CopyOnWriteArrayList<GameSystem>()
-    private val entities = CopyOnWriteArrayList<Entity>()
-    
+
+    // ─── Entity Storage ───────────────────────────────────────────────────
+    //
+    // Main list:  Only touched inside update(), which runs on a single
+    //             coroutine on Dispatchers.Default.  Using ArrayList avoids
+    //             the per-write full-array copy of CopyOnWriteArrayList.
+    //
+    // Pending queue:  addEntity() can be called from any thread (Main for
+    //                 spawning, Default for CombatSystem particles).  Entities
+    //                 are drained into `entities` at the very start of each
+    //                 frame.
+    //
+    // Snapshot:  A read-only copy published at the end of every frame so that
+    //            cross-thread readers (WaveSpawner, ObstacleSpawnSystem
+    //            callbacks) never race against game-loop mutations.
+    // ──────────────────────────────────────────────────────────────────────
+
+    private val entities = ArrayList<Entity>(256)
+    private val pendingAdditions = ConcurrentLinkedQueue<Entity>()
+
+    @Volatile
+    private var snapshot: List<Entity> = emptyList()
+
     // Target 60 FPS
     private val targetFrameTime = 1_000_000_000L / 60L // in nanoseconds
 
@@ -34,7 +74,7 @@ class GameLoop @Inject constructor() {
                 val currentTime = System.nanoTime()
                 val elapsed = currentTime - lastTime
                 lastTime = currentTime
-                
+
                 // Delta time in seconds, clamped to max 50ms to prevent spirals
                 val deltaTime = (elapsed / 1_000_000_000f).coerceAtMost(0.05f)
 
@@ -43,7 +83,7 @@ class GameLoop @Inject constructor() {
                 // Enforce frame rate cap (busy-wait for precision or sleep)
                 val processTime = System.nanoTime() - currentTime
                 val sleepTime = targetFrameTime - processTime
-                
+
                 if (sleepTime > 0) {
                     val sleepMs = sleepTime / 1_000_000
                     val sleepNs = (sleepTime % 1_000_000).toInt()
@@ -51,7 +91,7 @@ class GameLoop @Inject constructor() {
                     if (sleepMs > 0) {
                         try {
                             Thread.sleep(sleepMs, sleepNs)
-                        } catch (e: InterruptedException) {
+                        } catch (_: InterruptedException) {
                             // Ignore
                         }
                     }
@@ -74,31 +114,66 @@ class GameLoop @Inject constructor() {
         systems.sortBy { it.priority }
     }
 
+    /**
+     * Thread-safe: may be called from any thread.
+     * The entity will appear in the main list on the next frame.
+     */
     fun addEntity(entity: Entity) {
-        entities.add(entity)
-    }
-    
-    fun removeEntity(entity: Entity) {
-        entities.remove(entity)
-    }
-    
-    fun getEntitiesSnapshot(): List<Entity> {
-        return entities.toList()
-    }
-    
-    fun clear() {
-        entities.clear()
-        // Systems typically stay for the session
+        pendingAdditions.add(entity)
     }
 
-    private fun update(deltaTime: Float) {
-        // CopyOnWriteArrayList allows safe iteration without extra copying
-        // Note inside this loop, modifying entities is safe but won't be seen until next frame via COWAL
-        systems.forEach { system ->
-            system.update(deltaTime, entities)
+    /**
+     * Thread-safe: marks the entity inactive so it is swept at the
+     * end of the current (or next) frame.
+     */
+    fun removeEntity(entity: Entity) {
+        entity.isActive = false
+    }
+
+    /**
+     * Returns a read-only snapshot of the entity list that is safe to read
+     * from any thread.  Updated once per frame at the end of [update].
+     */
+    fun getEntitiesSnapshot(): List<Entity> = snapshot
+
+    /**
+     * Clears all entities and systems.
+     * Synchronized with [update] so we never clear mid-frame.
+     */
+    fun clear() {
+        synchronized(this) {
+            entities.clear()
+            pendingAdditions.clear()
+            snapshot = emptyList()
+            systems.clear()
         }
-        
-        // Cleanup dead entities
-        entities.removeAll { !it.isActive }
+    }
+
+    // ─── Frame Update ─────────────────────────────────────────────────────
+
+    private fun update(deltaTime: Float) {
+        synchronized(this) {
+            // 1. Drain pending additions (lock-free queue → ArrayList).
+            //    Entities added by systems during this frame will appear next frame.
+            while (true) {
+                val e = pendingAdditions.poll() ?: break
+                entities.add(e)
+            }
+
+            // 2. Run all systems.  `entities` is not structurally modified during
+            //    system execution because addEntity() goes to the pending queue
+            //    and removeEntity() only flips a boolean.
+            systems.forEach { system ->
+                system.update(deltaTime, entities)
+            }
+
+            // 3. Remove dead entities IN-PLACE.
+            //    ArrayList.removeIf uses a single O(n) pass with an internal BitSet
+            //    — zero temporary lists, zero per-element array copies.
+            entities.removeIf { !it.isActive }
+
+            // 4. Publish a read-only snapshot for cross-thread readers.
+            snapshot = ArrayList(entities)
+        }
     }
 }

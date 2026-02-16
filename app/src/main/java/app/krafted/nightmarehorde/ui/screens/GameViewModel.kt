@@ -27,10 +27,12 @@ import app.krafted.nightmarehorde.game.data.ObstacleType
 import app.krafted.nightmarehorde.game.data.ZombieType
 import app.krafted.nightmarehorde.game.entities.HitEffectEntity
 import app.krafted.nightmarehorde.game.entities.PlayerEntity
+import app.krafted.nightmarehorde.engine.rendering.LightingSystem
 import app.krafted.nightmarehorde.game.systems.AISystem
 import app.krafted.nightmarehorde.game.systems.AutoAimSystem
 import app.krafted.nightmarehorde.game.systems.CombatSystem
 import app.krafted.nightmarehorde.game.systems.DamagePopupSystem
+import app.krafted.nightmarehorde.game.systems.DayNightCycle
 import app.krafted.nightmarehorde.game.systems.LootDropSystem
 import app.krafted.nightmarehorde.game.systems.ObstacleSpawnSystem
 import app.krafted.nightmarehorde.game.systems.ParticleSystem
@@ -89,12 +91,29 @@ class GameViewModel @Inject constructor(
     val unlockedWeapons: StateFlow<List<WeaponType>> = weaponManager.unlockedWeapons
     val weaponUnlockNotification: StateFlow<WeaponType?> = weaponManager.weaponUnlockNotification
 
+    // Day/Night cycle state exposed for HUD + rendering overlay.
+    // Bundled into a single data class so a Compose frame always sees a
+    // consistent snapshot (no partial update between phase / intensity / progress).
+    data class DayNightState(
+        val phase: DayNightCycle.TimePhase = DayNightCycle.TimePhase.DAY,
+        val nightIntensity: Float = 0f,
+        val phaseProgress: Float = 0f,
+        val overlayAlpha: Float = 0f
+    )
+
+    private val _dayNightState = MutableStateFlow(DayNightState())
+    val dayNightState: StateFlow<DayNightState> = _dayNightState.asStateFlow()
+
+    /** LightingSystem for the rendering overlay — read by GameScreen. */
+    val lightingSystem = LightingSystem()
+
     // ─── Internal State ───────────────────────────────────────────────────
 
     private var isGameRunning = false
     private var playerEntity: Entity? = null
     private lateinit var lootDropSystem: LootDropSystem
     private lateinit var waveSpawner: WaveSpawner
+    private var dayNightCycle: DayNightCycle? = null
 
     /** Reference to spawning coroutine for clean cancellation. */
     private var spawnJob: Job? = null
@@ -128,8 +147,18 @@ class GameViewModel @Inject constructor(
         // --- Initialize extracted managers ---
         waveSpawner = WaveSpawner(gameLoop)
         waveSpawner.resetTimer()
+        // dayNightCycle will be assigned after it's created below
 
         lootDropSystem = LootDropSystem(gameLoop)
+
+        // --- Day/Night Cycle (priority 1 — runs before everything) ---
+        val cycle = DayNightCycle()
+        cycle.reset()
+        dayNightCycle = cycle
+        gameLoop.addSystem(cycle)
+
+        // Wire day/night cycle into wave spawner
+        waveSpawner.dayNightCycle = cycle
 
         // --- Register Systems (order by priority) ---
 
@@ -153,6 +182,7 @@ class GameViewModel @Inject constructor(
         gameLoop.addSystem(zombieAnimationSystem)
 
         aiSystem.onSpawnEntity = { entity -> gameLoop.addEntity(entity) }
+        aiSystem.dayNightCycle = cycle
         gameLoop.addSystem(aiSystem)
 
         gameLoop.addSystem(AutoAimSystem())
@@ -179,7 +209,9 @@ class GameViewModel @Inject constructor(
         gameLoop.addSystem(CollisionResponseSystem())
         gameLoop.addSystem(collisionSystem)
         gameLoop.addSystem(ProjectileSystem())
-        gameLoop.addSystem(ZombieDamageSystem())
+        gameLoop.addSystem(ZombieDamageSystem().apply {
+            dayNightCycle = cycle
+        })
 
         // CombatSystem (100): handle projectile-enemy collisions + death effects
         val combatSystem = CombatSystem(gameLoop).apply {
@@ -258,6 +290,17 @@ class GameViewModel @Inject constructor(
                     }
                     weaponManager.refreshHudState(player)
                 }
+                // Update day/night HUD state as a single atomic snapshot
+                // (safe-read — may be null during teardown)
+                dayNightCycle?.let { dnc ->
+                    _dayNightState.value = DayNightState(
+                        phase = dnc.currentPhase,
+                        nightIntensity = dnc.nightIntensity,
+                        phaseProgress = dnc.phaseProgress,
+                        overlayAlpha = dnc.overlayAlpha
+                    )
+                }
+
                 kotlinx.coroutines.delay(16)
             }
         }
@@ -280,6 +323,7 @@ class GameViewModel @Inject constructor(
         gameLoop.clear()
         inputManager.reset()
         playerEntity = null
+        dayNightCycle = null
     }
 
     // ─── Weapon Switching (delegated) ─────────────────────────────────────

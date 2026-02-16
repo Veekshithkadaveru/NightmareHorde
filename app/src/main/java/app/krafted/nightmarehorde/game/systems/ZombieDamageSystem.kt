@@ -23,6 +23,9 @@ class ZombieDamageSystem : GameSystem(priority = 95) {
         const val DAMAGE_TICK_INTERVAL = 0.5f
     }
 
+    /** Day/Night cycle reference — provides a global damage multiplier for zombies. */
+    var dayNightCycle: DayNightCycle? = null
+
     private var damageCooldown: Float = 0f
 
     override fun update(deltaTime: Float, entities: List<Entity>) {
@@ -55,7 +58,8 @@ class ZombieDamageSystem : GameSystem(priority = 95) {
 
             if (distSq <= radiusSum * radiusSum) {
                 val armor = playerStats?.armor ?: 0
-                val damage = (stats.baseDamage * stats.damageMultiplier).toInt()
+                val nightDmgMul = dayNightCycle?.damageMultiplier ?: 1f
+                val damage = (stats.baseDamage * stats.damageMultiplier * nightDmgMul).toInt()
                 playerHealth.takeDamage(damage, armor)
                 damageCooldown = DAMAGE_TICK_INTERVAL
                 break // Only one hit per tick
