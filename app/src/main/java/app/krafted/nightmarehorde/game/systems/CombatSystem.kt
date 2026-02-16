@@ -18,18 +18,29 @@ class CombatSystem(private val gameLoop: app.krafted.nightmarehorde.engine.core.
     /** Callback for on-death effects (e.g. Bloater explosion) */
     var onEnemyDeath: ((Entity) -> Unit)? = null
 
-    override fun update(deltaTime: Float, entities: List<Entity>) {
-        val projectiles = entities.filter { it.hasComponent(ProjectileComponent::class) }
-        val targets = entities.filter { it.hasComponent(HealthComponent::class) }
+    // Reusable buffers — avoids allocating two new filtered lists every single
+    // frame.  Over a 7-minute session at 60 FPS that eliminates ~50,000
+    // unnecessary list allocations and the associated GC pressure.
+    private val projectileBuffer = ArrayList<Entity>(64)
+    private val targetBuffer = ArrayList<Entity>(128)
 
-        for (projectileEntity in projectiles) {
+    override fun update(deltaTime: Float, entities: List<Entity>) {
+        // Single-pass classification into reusable buffers (zero allocation)
+        projectileBuffer.clear()
+        targetBuffer.clear()
+        for (entity in entities) {
+            if (entity.hasComponent(ProjectileComponent::class)) projectileBuffer.add(entity)
+            if (entity.hasComponent(HealthComponent::class)) targetBuffer.add(entity)
+        }
+
+        for (projectileEntity in projectileBuffer) {
             val projectile = projectileEntity.getComponent(ProjectileComponent::class) ?: continue
             if (!projectileEntity.isActive) continue
 
             val projTransform = projectileEntity.getComponent(TransformComponent::class) ?: continue
             val projCollider = projectileEntity.getComponent(ColliderComponent::class) ?: continue
 
-            for (targetEntity in targets) {
+            for (targetEntity in targetBuffer) {
                 if (targetEntity.id == projectile.ownerId || !targetEntity.isActive) continue
                 if (targetEntity.hasComponent(ProjectileComponent::class)) continue
 

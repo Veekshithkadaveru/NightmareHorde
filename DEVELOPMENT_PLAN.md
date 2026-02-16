@@ -155,7 +155,7 @@ todos:
 ### 🧟 Phase C: Enemies & Waves
 - [x] **C1: Zombie Types** <!-- id: enemies -->
 - [x] **C2: Wave Spawning** <!-- id: spawning -->
-- [ ] **C3: Day/Night Cycle** <!-- id: day-night -->
+- [x] **C3: Day/Night Cycle** <!-- id: day-night -->
 - [ ] **C4: Boss Battles** <!-- id: bosses -->
 
 ### 🔧 Phase D: Turret System
@@ -687,10 +687,10 @@ fun findNearestTarget(
 | Night | 1 minute | Fast, +50% spawns, +25% DMG |
 
 **Exit Criteria:**
-- [ ] Screen tints based on time
-- [ ] Night zombies are faster/stronger
-- [ ] Spawn rates change correctly
-- [ ] UI shows current phase
+- [x] Screen tints based on time
+- [x] Night zombies are faster/stronger
+- [x] Spawn rates change correctly
+- [x] UI shows current phase
 
 ---
 

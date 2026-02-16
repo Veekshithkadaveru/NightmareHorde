@@ -45,6 +45,9 @@ class AISystem @Inject constructor() : GameSystem(priority = 18) {
     /** Callback to spawn entities (projectiles, explosion effects) into the game loop */
     var onSpawnEntity: ((Entity) -> Unit)? = null
 
+    /** Day/Night cycle reference — provides a global speed multiplier for zombies. */
+    var dayNightCycle: DayNightCycle? = null
+
     fun setPlayer(player: Entity) {
         playerEntity = player
     }
@@ -52,6 +55,9 @@ class AISystem @Inject constructor() : GameSystem(priority = 18) {
     override fun update(deltaTime: Float, entities: List<Entity>) {
         val player = playerEntity ?: return
         val playerTransform = player.getComponent(TransformComponent::class) ?: return
+
+        // Cache the night speed multiplier once per frame
+        nightSpeedMultiplier = dayNightCycle?.speedMultiplier ?: 1f
 
         // Decay buff timers on all entities
         entities.forEach { entity ->
@@ -87,6 +93,9 @@ class AISystem @Inject constructor() : GameSystem(priority = 18) {
         }
     }
 
+    /** The effective night speed multiplier, cached once per frame. */
+    private var nightSpeedMultiplier: Float = 1f
+
     private fun updateChaseBehavior(
         transform: TransformComponent,
         velocity: VelocityComponent,
@@ -97,12 +106,13 @@ class AISystem @Inject constructor() : GameSystem(priority = 18) {
         val dy = targetTransform.y - transform.y
         val distance = sqrt(dx * dx + dy * dy)
 
-        if (distance > 0) {
+        if (distance > 0.01f) {
             val dirX = dx / distance
             val dirY = dy / distance
 
-            velocity.vx = dirX * stats.moveSpeed
-            velocity.vy = dirY * stats.moveSpeed
+            val speed = stats.moveSpeed * nightSpeedMultiplier
+            velocity.vx = dirX * speed
+            velocity.vy = dirY * speed
             // Note: No rotation set — side-view sprites use flipX for direction
             // (handled by ZombieAnimationSystem)
         }
@@ -192,8 +202,9 @@ class AISystem @Inject constructor() : GameSystem(priority = 18) {
             // Move closer if out of range
             val dirX = dx / distance
             val dirY = dy / distance
-            velocity.vx = dirX * stats.moveSpeed
-            velocity.vy = dirY * stats.moveSpeed
+            val speed = stats.moveSpeed * nightSpeedMultiplier
+            velocity.vx = dirX * speed
+            velocity.vy = dirY * speed
         } else {
             // In range: stop and fire
             velocity.vx = 0f
@@ -261,17 +272,18 @@ class AISystem @Inject constructor() : GameSystem(priority = 18) {
 
         // Stay at buff range - don't get too close
         val preferredDistance = ai.range * 0.8f
+        val speed = stats.moveSpeed * nightSpeedMultiplier
         if (distance > ai.range) {
             val dirX = dx / distance
             val dirY = dy / distance
-            velocity.vx = dirX * stats.moveSpeed
-            velocity.vy = dirY * stats.moveSpeed
-        } else if (distance < preferredDistance * 0.5f) {
-            // Too close, back off
+            velocity.vx = dirX * speed
+            velocity.vy = dirY * speed
+        } else if (distance < preferredDistance * 0.5f && distance > 0.01f) {
+            // Too close, back off (guard distance > 0 to prevent NaN from div-by-zero)
             val dirX = dx / distance
             val dirY = dy / distance
-            velocity.vx = -dirX * stats.moveSpeed * 0.5f
-            velocity.vy = -dirY * stats.moveSpeed * 0.5f
+            velocity.vx = -dirX * speed * 0.5f
+            velocity.vy = -dirY * speed * 0.5f
         } else {
             velocity.vx = 0f
             velocity.vy = 0f
@@ -343,7 +355,7 @@ class AISystem @Inject constructor() : GameSystem(priority = 18) {
             if (cDist > 5f && ai.chargeTimer > 0f) {
                 val dirX = cdx / cDist
                 val dirY = cdy / cDist
-                val chargeSpeed = stats.moveSpeed * CHARGE_SPEED_MULTIPLIER
+                val chargeSpeed = stats.moveSpeed * CHARGE_SPEED_MULTIPLIER * nightSpeedMultiplier
                 velocity.vx = dirX * chargeSpeed
                 velocity.vy = dirY * chargeSpeed
             } else {
@@ -358,8 +370,9 @@ class AISystem @Inject constructor() : GameSystem(priority = 18) {
             if (distance > 0f) {
                 val dirX = dx / distance
                 val dirY = dy / distance
-                velocity.vx = dirX * stats.moveSpeed
-                velocity.vy = dirY * stats.moveSpeed
+                val speed = stats.moveSpeed * nightSpeedMultiplier
+                velocity.vx = dirX * speed
+                velocity.vy = dirY * speed
             }
 
             // Start charge when in range and cooldown is ready

@@ -27,6 +27,10 @@ class CollisionSystem(
     
     /** Set of collision pairs already processed this frame (to avoid duplicates) */
     private val processedPairs = mutableSetOf<Long>()
+
+    /** Reusable buffer for spatial grid query results — avoids allocating a new
+     *  list per entity per frame via [SpatialHashGrid.query]'s toList(). */
+    private val nearbyBuffer = ArrayList<Entity>(64)
     
     override fun update(deltaTime: Float, entities: List<Entity>) {
         // Clear state from previous frame
@@ -46,24 +50,26 @@ class CollisionSystem(
             val transformA = entityA.getComponent(TransformComponent::class) ?: return@forEach
             val colliderA = entityA.getComponent(ColliderComponent::class) ?: return@forEach
             
-            // Query nearby entities from spatial grid
+            // Query nearby entities from spatial grid into reusable buffer
+            // (avoids creating a new list per entity per frame)
             val queryRadius = getQueryRadius(colliderA)
-            val nearby = spatialGrid.query(transformA.x, transformA.y, queryRadius)
+            nearbyBuffer.clear()
+            spatialGrid.queryInto(transformA.x, transformA.y, queryRadius, nearbyBuffer)
             
-            nearby.forEach { entityB ->
+            for (entityB in nearbyBuffer) {
                 // Skip self-collision
-                if (entityA.id == entityB.id) return@forEach
+                if (entityA.id == entityB.id) continue
                 
                 // Skip if already processed (A,B or B,A)
                 val pairKey = makePairKey(entityA.id, entityB.id)
-                if (pairKey in processedPairs) return@forEach
+                if (pairKey in processedPairs) continue
                 processedPairs.add(pairKey)
                 
-                val transformB = entityB.getComponent(TransformComponent::class) ?: return@forEach
-                val colliderB = entityB.getComponent(ColliderComponent::class) ?: return@forEach
+                val transformB = entityB.getComponent(TransformComponent::class) ?: continue
+                val colliderB = entityB.getComponent(ColliderComponent::class) ?: continue
                 
                 // Check layer compatibility
-                if (!shouldCollide(colliderA, colliderB)) return@forEach
+                if (!shouldCollide(colliderA, colliderB)) continue
                 
                 // Narrow-phase: actual collision test
                 if (checkCollision(transformA, colliderA, transformB, colliderB)) {

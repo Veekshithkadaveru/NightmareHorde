@@ -3,6 +3,7 @@ package app.krafted.nightmarehorde.ui.screens
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -40,8 +41,10 @@ import app.krafted.nightmarehorde.engine.input.VirtualJoystick
 import app.krafted.nightmarehorde.engine.input.detectGameGestures
 import app.krafted.nightmarehorde.engine.rendering.GameSurface
 import app.krafted.nightmarehorde.game.data.CharacterType
+import app.krafted.nightmarehorde.game.systems.DayNightCycle
 import app.krafted.nightmarehorde.game.weapons.WeaponType
 import app.krafted.nightmarehorde.ui.components.HealthBar
+import app.krafted.nightmarehorde.ui.components.TimeIndicator
 import kotlinx.coroutines.delay
 
 @Composable
@@ -57,6 +60,7 @@ fun GameScreen(
     val activeWeaponType by viewModel.activeWeaponType.collectAsState()
     val currentAmmo by viewModel.currentAmmo.collectAsState()
     val weaponUnlockNotification by viewModel.weaponUnlockNotification.collectAsState()
+    val dayNight by viewModel.dayNightState.collectAsState()
     val scope = rememberCoroutineScope()
 
     var frameTick by remember { mutableIntStateOf(0) }
@@ -113,6 +117,21 @@ fun GameScreen(
             modifier = Modifier.detectGameGestures(gestureHandler, scope)
         )
 
+        // Day/Night lighting overlay — only composed when there is a tint to draw.
+        // Skipping the Canvas entirely during day avoids GPU overdraw on every frame.
+        if (dayNight.nightIntensity > 0f) {
+            val lightingSystemRef = remember { viewModel.lightingSystem }
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                lightingSystemRef.render(
+                    drawScope = this,
+                    phase = dayNight.phase,
+                    nightIntensity = dayNight.nightIntensity,
+                    phaseProgress = dayNight.phaseProgress,
+                    overlayAlpha = dayNight.overlayAlpha
+                )
+            }
+        }
+
         // HUD overlay — Health Bar (top-left)
         HealthBar(
             currentHealth = playerHealth.first,
@@ -140,16 +159,26 @@ fun GameScreen(
             )
         }
 
-        // Kill Counter (top-right, VS-style)
-        Text(
-            text = "Kills: $kills",
-            color = Color.White,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
+        // Kill Counter + Time Indicator (top-right, VS-style)
+        Column(
+            horizontalAlignment = Alignment.End,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(16.dp)
-        )
+        ) {
+            Text(
+                text = "Kills: $kills",
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            TimeIndicator(
+                phase = dayNight.phase,
+                phaseProgress = dayNight.phaseProgress,
+                nightIntensity = dayNight.nightIntensity,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
 
         // Weapon Bar (top center, below timer)
         Column(
