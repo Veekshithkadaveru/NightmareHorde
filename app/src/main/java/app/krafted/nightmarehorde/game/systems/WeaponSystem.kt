@@ -231,7 +231,8 @@ class WeaponSystem(
                 particleColor = color,
                 particleSize = 10f,         // Fallback (unused when width/height set)
                 particleWidth = bladeLen,   // Elongated oval — blade segment
-                particleHeight = bladeThick
+                particleHeight = bladeThick,
+                isMelee = true              // Marks as melee for boss retaliation
             )
             gameLoop.addEntity(projectile)
         }

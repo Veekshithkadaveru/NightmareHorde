@@ -43,6 +43,7 @@ import app.krafted.nightmarehorde.engine.rendering.GameSurface
 import app.krafted.nightmarehorde.game.data.CharacterType
 import app.krafted.nightmarehorde.game.systems.DayNightCycle
 import app.krafted.nightmarehorde.game.weapons.WeaponType
+import app.krafted.nightmarehorde.ui.components.BossHealthBar
 import app.krafted.nightmarehorde.ui.components.HealthBar
 import app.krafted.nightmarehorde.ui.components.TimeIndicator
 import kotlinx.coroutines.delay
@@ -61,6 +62,7 @@ fun GameScreen(
     val currentAmmo by viewModel.currentAmmo.collectAsState()
     val weaponUnlockNotification by viewModel.weaponUnlockNotification.collectAsState()
     val dayNight by viewModel.dayNightState.collectAsState()
+    val bossState by viewModel.bossState.collectAsState()
     val scope = rememberCoroutineScope()
 
     var frameTick by remember { mutableIntStateOf(0) }
@@ -248,6 +250,18 @@ fun GameScreen(
                     .padding(horizontal = 24.dp, vertical = 12.dp)
             )
         }
+
+        // Boss Health Bar (bottom-center, above joystick)
+        BossHealthBar(
+            bossName = bossState.name,
+            currentHealth = bossState.currentHealth,
+            maxHealth = bossState.maxHealth,
+            isVisible = bossState.isActive,
+            accentColor = bossState.accentColor,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 80.dp)
+        )
 
         // Virtual Joystick - bottom left corner
         VirtualJoystick(

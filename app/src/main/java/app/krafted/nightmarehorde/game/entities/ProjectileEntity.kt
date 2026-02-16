@@ -28,7 +28,9 @@ class ProjectileEntity(
     particleSize: Float = 6f,
     /** If > 0 (with particleColor), renders as an elongated oval (blade/slash) */
     particleWidth: Float = 0f,
-    particleHeight: Float = 0f
+    particleHeight: Float = 0f,
+    /** True for melee-origin projectiles (whip blade). Triggers boss retaliation. */
+    isMelee: Boolean = false
 ) : Entity(id) {
 
     init {
@@ -64,7 +66,8 @@ class ProjectileEntity(
             damage = damage,
             ownerId = ownerId,
             penetrating = penetrating,
-            maxLifetime = lifeTime
+            maxLifetime = lifeTime,
+            isMelee = isMelee
         ))
     }
 }
