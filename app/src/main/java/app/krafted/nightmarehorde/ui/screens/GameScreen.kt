@@ -63,6 +63,7 @@ fun GameScreen(
     val weaponUnlockNotification by viewModel.weaponUnlockNotification.collectAsState()
     val dayNight by viewModel.dayNightState.collectAsState()
     val bossState by viewModel.bossState.collectAsState()
+    val droneUnlockNotification by viewModel.droneUnlockNotification.collectAsState()
     val scope = rememberCoroutineScope()
 
     var frameTick by remember { mutableIntStateOf(0) }
@@ -83,6 +84,17 @@ fun GameScreen(
             delay(2000)
             showUnlockBanner = false
             viewModel.dismissWeaponNotification()
+        }
+    }
+
+    LaunchedEffect(droneUnlockNotification) {
+        val notification = droneUnlockNotification
+        if (notification != null) {
+            unlockBannerText = "${notification.displayName} Online!"
+            showUnlockBanner = true
+            delay(2000)
+            showUnlockBanner = false
+            viewModel.dismissDroneNotification()
         }
     }
 
@@ -115,6 +127,7 @@ fun GameScreen(
             spriteRenderer = viewModel.spriteRenderer,
             damageNumberRenderer = viewModel.damageNumberRenderer,
             particleRenderer = viewModel.particleRenderer,
+            droneRenderer = viewModel.droneRenderer,
             backgroundColor = Color(0xFF1a1a2e),
             modifier = Modifier.detectGameGestures(gestureHandler, scope)
         )

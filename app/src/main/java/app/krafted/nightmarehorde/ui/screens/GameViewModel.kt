@@ -20,10 +20,12 @@ import app.krafted.nightmarehorde.engine.physics.MovementSystem
 import app.krafted.nightmarehorde.engine.physics.SpatialHashGrid
 import app.krafted.nightmarehorde.engine.rendering.Camera
 import app.krafted.nightmarehorde.engine.rendering.DamageNumberRenderer
+import app.krafted.nightmarehorde.engine.rendering.DroneRenderer
 import app.krafted.nightmarehorde.engine.rendering.ParticleRenderer
 import app.krafted.nightmarehorde.engine.rendering.SpriteRenderer
 import app.krafted.nightmarehorde.game.data.AssetManager
 import app.krafted.nightmarehorde.game.data.CharacterType
+import app.krafted.nightmarehorde.game.data.DroneType
 import app.krafted.nightmarehorde.game.data.ObstacleType
 import app.krafted.nightmarehorde.game.data.BossType
 import app.krafted.nightmarehorde.game.data.ZombieType
@@ -35,6 +37,8 @@ import app.krafted.nightmarehorde.game.entities.PlayerEntity
 import app.krafted.nightmarehorde.engine.rendering.LightingSystem
 import app.krafted.nightmarehorde.game.systems.AISystem
 import app.krafted.nightmarehorde.game.systems.AutoAimSystem
+import app.krafted.nightmarehorde.game.systems.DroneManager
+import app.krafted.nightmarehorde.game.systems.DroneSystem
 import app.krafted.nightmarehorde.game.systems.BossAnimationSystem
 import app.krafted.nightmarehorde.game.systems.BossSystem
 import app.krafted.nightmarehorde.game.systems.CombatSystem
@@ -73,7 +77,8 @@ class GameViewModel @Inject constructor(
     val assetManager: AssetManager,
     val inputManager: InputManager,
     val aiSystem: AISystem,
-    val zombieAnimationSystem: ZombieAnimationSystem
+    val zombieAnimationSystem: ZombieAnimationSystem,
+    val droneRenderer: DroneRenderer
 ) : ViewModel() {
 
     // ─── HUD State ────────────────────────────────────────────────────────
@@ -126,6 +131,13 @@ class GameViewModel @Inject constructor(
     private val _bossState = MutableStateFlow(BossState())
     val bossState: StateFlow<BossState> = _bossState.asStateFlow()
 
+    // ─── Drone HUD State ────────────────────────────────────────────────
+    private var droneManager: DroneManager? = null
+    private val _droneHudState = MutableStateFlow<List<DroneManager.DroneHudInfo>>(emptyList())
+    val droneHudState: StateFlow<List<DroneManager.DroneHudInfo>> = _droneHudState.asStateFlow()
+    private val _droneUnlockNotification = MutableStateFlow<DroneType?>(null)
+    val droneUnlockNotification: StateFlow<DroneType?> = _droneUnlockNotification.asStateFlow()
+
     // ─── Internal State ───────────────────────────────────────────────────
 
     private var isGameRunning = false
@@ -144,6 +156,7 @@ class GameViewModel @Inject constructor(
     private var bossesDefeated: Int = 0
     private var lastBossSpawnTime: Float = 0f
     private var isBossFightActive: Boolean = false
+    private var droneGrantedWave3: Boolean = false
 
     companion object {
         /** Boss spawns every 5 minutes (300 seconds) */
@@ -179,7 +192,9 @@ class GameViewModel @Inject constructor(
             "boss_hive_queen",
             "boss_abomination",
             "boss_thrust",
-            "boss_bolt"
+            "boss_bolt",
+            // Drone assets
+            *DroneType.entries.map { it.textureKey }.toTypedArray()
         )
 
         val spatialGrid = SpatialHashGrid()
@@ -233,6 +248,17 @@ class GameViewModel @Inject constructor(
         gameLoop.addSystem(bossSystem)
 
         gameLoop.addSystem(AutoAimSystem())
+
+        // DroneSystem (22): orbital drone orbit, targeting, firing, fuel
+        val dm = DroneManager(gameLoop)
+        droneManager = dm
+        val droneSystem = DroneSystem(gameLoop).apply {
+            onDroneKill = { deadEntity, droneEntityId ->
+                handleEnemyDeath(deadEntity)
+                dm.refuelDroneById(droneEntityId, DroneManager.REFUEL_DRONE_KILL)
+            }
+        }
+        gameLoop.addSystem(droneSystem)
 
         // PickupSystem (25): magnet attraction and despawn timer
         gameLoop.addSystem(PickupSystem())
@@ -303,6 +329,12 @@ class GameViewModel @Inject constructor(
                 waveSpawner.tick()
                 _gameTime.value = waveSpawner.elapsedGameTime
 
+                // ─── Wave 3 Gunner Drone Grant ───────────────────────
+                if (!droneGrantedWave3 && waveSpawner.elapsedGameTime >= 90f) {
+                    droneGrantedWave3 = true
+                    playerEntity?.let { droneManager?.grantDrone(DroneType.GUNNER, it) }
+                }
+
                 // ─── Boss Spawn Check ──────────────────────────────────
                 checkBossSpawn()
 
@@ -368,6 +400,13 @@ class GameViewModel @Inject constructor(
                 // Update boss HUD state
                 updateBossHudState()
 
+                // Update drone HUD state
+                droneManager?.let { dm ->
+                    dm.refreshHudState()
+                    _droneHudState.value = dm.droneHudState.value
+                    _droneUnlockNotification.value = dm.droneUnlockNotification.value
+                }
+
                 kotlinx.coroutines.delay(16)
             }
         }
@@ -395,7 +434,11 @@ class GameViewModel @Inject constructor(
         isBossFightActive = false
         bossesDefeated = 0
         lastBossSpawnTime = 0f
+        droneGrantedWave3 = false
         _bossState.value = BossState()
+        droneManager?.reset()
+        _droneHudState.value = emptyList()
+        _droneUnlockNotification.value = null
     }
 
     // ─── Weapon Switching (delegated) ─────────────────────────────────────
@@ -412,11 +455,20 @@ class GameViewModel @Inject constructor(
         weaponManager.dismissWeaponNotification()
     }
 
+    fun dismissDroneNotification() {
+        droneManager?.dismissDroneNotification()
+        _droneUnlockNotification.value = null
+    }
+
     // ─── Enemy Death Handler ──────────────────────────────────────────────
 
     private fun handleEnemyDeath(deadEntity: Entity) {
         _killCount.value++
         val kills = _killCount.value
+
+        // Refuel drones on any kill
+        droneManager?.refuelAllDrones(DroneManager.REFUEL_ANY_KILL)
+        droneManager?.cleanupLostDrones()
 
         // Check weapon unlocks
         playerEntity?.let { weaponManager.checkWeaponUnlocks(kills, it) }
@@ -524,6 +576,9 @@ class GameViewModel @Inject constructor(
         isBossFightActive = false
         activeBossEntity = null
         lastBossSpawnTime = waveSpawner.elapsedGameTime
+
+        // Boss kill grants significant drone fuel
+        droneManager?.refuelAllDrones(DroneManager.REFUEL_BOSS_KILL)
 
         val transform = deadEntity.getComponent(TransformComponent::class)
         if (transform != null) {
