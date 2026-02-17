@@ -23,6 +23,7 @@ fun GameSurface(
     spriteRenderer: SpriteRenderer,
     damageNumberRenderer: DamageNumberRenderer,
     particleRenderer: ParticleRenderer,
+    droneRenderer: DroneRenderer,
     modifier: Modifier = Modifier,
     backgroundColor: Color = Color.Black
 ) {
@@ -51,6 +52,13 @@ fun GameSurface(
             camera = camera
         )
 
+        // Render drone fuel rings
+        droneRenderer.render(
+            drawScope = this,
+            entities = entities,
+            camera = camera
+        )
+
         // Render damage numbers on top
         damageNumberRenderer.render(
             drawScope = this,
@@ -74,6 +82,7 @@ fun GameSurface(
     spriteRenderer: SpriteRenderer,
     damageNumberRenderer: DamageNumberRenderer,
     particleRenderer: ParticleRenderer,
+    droneRenderer: DroneRenderer,
     modifier: Modifier = Modifier,
     backgroundColor: Color = Color.Black
 ) {
@@ -83,6 +92,7 @@ fun GameSurface(
         spriteRenderer = spriteRenderer,
         damageNumberRenderer = damageNumberRenderer,
         particleRenderer = particleRenderer,
+        droneRenderer = droneRenderer,
         modifier = modifier,
         backgroundColor = backgroundColor
     )

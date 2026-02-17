@@ -1,6 +1,6 @@
 ---
 name: Dead Zone Phase 1
-overview: Build a complete Android zombie horde survival game with Kotlin and Jetpack Compose. Features include turret defense system, day/night cycle, 7 zombie types, 3 bosses, 6 playable characters, 5 maps, ammo scavenging, survivor rescue missions, level-up system with 20+ upgrades, meta progression with permanent upgrades, and full monetization with AdMob and Google Play Billing.
+overview: Build a complete Android zombie horde survival game with Kotlin and Jetpack Compose. Features include orbital drone system, day/night cycle, 7 zombie types, 3 bosses, 6 playable characters, 5 maps, ammo scavenging, survivor rescue missions, level-up system with 20+ upgrades, meta progression with permanent upgrades, and full monetization with AdMob and Google Play Billing.
 todos:
   - id: foundation
     content: Setup project with Compose, Hilt, game loop architecture, and ECS foundation
@@ -46,8 +46,8 @@ todos:
     status: completed
     dependencies:
       - enemies
-  - id: turrets
-    content: Implement 4 turret types with placement UI and upgrades
+  - id: drones
+    content: Implement 4 orbital drone types with fuel system and upgrades
     status: pending
     dependencies:
       - combat
@@ -118,7 +118,7 @@ todos:
     status: pending
     dependencies:
       - bosses
-      - turrets
+      - drones
   - id: polish
     content: Bug fixes, balance tuning, and final UI polish
     status: pending
@@ -135,7 +135,7 @@ todos:
 
 # Dead Zone: Endless Onslaught - Phase 1 Implementation Plan
 
-> **Overview**: Build a complete Android zombie horde survival game with Kotlin and Jetpack Compose. Features include turret defense system, day/night cycle, 7 zombie types, 3 bosses, 6 playable characters, 5 maps, ammo scavenging, survivor rescue missions, level-up system with 20+ upgrades, meta progression with permanent upgrades, and full monetization with AdMob and Google Play Billing.
+> **Overview**: Build a complete Android zombie horde survival game with Kotlin and Jetpack Compose. Features include orbital drone system, day/night cycle, 7 zombie types, 3 bosses, 6 playable characters, 5 maps, ammo scavenging, survivor rescue missions, level-up system with 20+ upgrades, meta progression with permanent upgrades, and full monetization with AdMob and Google Play Billing.
 
 > **Asset Note**: Agents can take 2D image assets from the `Legacy Collection` directory.
 
@@ -158,8 +158,8 @@ todos:
 - [x] **C3: Day/Night Cycle** <!-- id: day-night -->
 - [x] **C4: Boss Battles** <!-- id: bosses -->
 
-### 🔧 Phase D: Turret System
-- [ ] **D1: Turret Defense** <!-- id: turrets -->
+### 🔧 Phase D: Drone System
+- [ ] **D1: Orbital Drones** <!-- id: drones -->
 
 ### ⬆️ Phase E: Progression
 - [ ] **E1: Level-Up System** <!-- id: levelup -->
@@ -213,7 +213,7 @@ Entity (ID only)
     ├── ColliderComponent (radius, type)
     ├── WeaponComponent (damage, fireRate, ammo)
     ├── AIComponent (state, target, behavior)
-    └── TurretComponent (range, targeting)
+    └── DroneComponent (type, fuel, level, orbitAngle)
 
 Systems (process entities with matching components)
     ├── MovementSystem
@@ -222,7 +222,7 @@ Systems (process entities with matching components)
     ├── CombatSystem
     ├── AISystem
     ├── SpawningSystem
-    └── TurretSystem
+    └── DroneSystem
 ```
 
 ### 3. Project File Structure
@@ -259,7 +259,7 @@ com.nightmare.deadzone/
 │   ├── entities/
 │   │   ├── PlayerEntity.kt
 │   │   ├── ZombieEntity.kt
-│   │   ├── TurretEntity.kt
+│   │   ├── DroneEntity.kt
 │   │   ├── BossEntity.kt
 │   │   └── ProjectileEntity.kt
 │   ├── systems/
@@ -289,7 +289,7 @@ com.nightmare.deadzone/
 │   ├── components/
 │   │   ├── HUD.kt
 │   │   ├── HealthBar.kt
-│   │   ├── TurretPlacementMenu.kt
+│   │   ├── DroneStatusOverlay.kt
 │   │   └── BossHealthBar.kt
 │   └── theme/
 │       ├── Theme.kt
@@ -484,7 +484,7 @@ fun VirtualJoystick(
 **Exit Criteria:**
 - [ ] Joystick appears on touch
 - [ ] Movement direction is smooth and responsive
-- [ ] Double-tap detected for turret menu
+- [ ] Double-tap detected for interactions
 - [ ] No input lag perceptible
 
 ---
@@ -726,40 +726,95 @@ fun findNearestTarget(
 
 ---
 
-## Phase D: Turret System
+## Phase D: Drone System
 
-### D1: Turret Defense <!-- id: turrets -->
-> **Goal**: Implement 4 turret types with placement and upgrades.
+### D1: Orbital Drones <!-- id: drones -->
+> **Goal**: Implement 4 orbital drone types with fuel system and upgrades.
 
-**Duration**: 1.5 Weeks
+**Duration**: 1 Week
 
 **Files to create:**
 | File | Description |
 |------|-------------|
-| `game/entities/TurretEntity.kt` | Base turret |
-| `game/entities/turrets/MachineGunTurret.kt` | High fire rate |
-| `game/entities/turrets/ShotgunTurret.kt` | Cone spread |
-| `game/entities/turrets/FlamethrowerTurret.kt` | DoT |
-| `game/entities/turrets/TeslaCoilTurret.kt` | Chain lightning |
-| `game/systems/TurretSystem.kt` | Turret AI |
-| `game/systems/ScrapSystem.kt` | Resource management |
-| `ui/components/TurretPlacementMenu.kt` | Placement UI |
-| `ui/components/TurretUpgradePanel.kt` | Upgrade UI |
+| `game/entities/DroneEntity.kt` | Base drone with orbit logic |
+| `game/entities/drones/GunnerDrone.kt` | Rapid fire single target |
+| `game/entities/drones/ScatterDrone.kt` | Pellet spread |
+| `game/entities/drones/InfernoDrone.kt` | Close-range burn AOE |
+| `game/entities/drones/ArcDrone.kt` | Chain lightning |
+| `game/systems/DroneSystem.kt` | Orbit, targeting, fuel management |
+| `game/systems/DroneFuelSystem.kt` | Fuel drain and refuel logic |
+| `ui/components/DroneStatusOverlay.kt` | Fuel ring visual on drones |
 
-**Turret Stats:**
-| Turret | Cost | Damage | Special |
-|--------|------|--------|---------|
-| Machine Gun | 50 | Low, Fast | High fire rate |
-| Shotgun | 75 | High, Slow | Cone spread |
-| Flamethrower | 100 | DoT | Burn effect |
-| Tesla Coil | 125 | Medium | Chain lightning |
+**Orbit Mechanics:**
+- Drones orbit the player at ~100 unit radius
+- Orbit speed slightly faster than player walk speed
+- Formation auto-adjusts based on active drone count:
+  - 1 drone: solo orbit
+  - 2 drones: opposite sides (180° apart)
+  - 3 drones: triangle (120° apart)
+- **Max 3 drones** at any time
+
+**Drone Acquisition:**
+- **Wave 3**: Gunner Drone auto-granted with popup (no supply drop)
+- **Level 5+**: Scatter Drone appears in level-up choices
+- **Level 10+**: Inferno Drone appears in level-up choices
+- **Level 15+** (or Boss drop): Arc Drone appears in level-up choices
+
+**Drone Stats:**
+| Drone | Base Damage | Fire Rate | Range | Special |
+|-------|-------------|-----------|-------|---------|
+| Gunner | 6 | 4/sec | 150 | Rapid fire, single target |
+| Scatter | 4×5 | 1/sec | 120 | 5 pellets in spread |
+| Inferno | 3/tick | 2 ticks/sec | 80 | Burns nearby enemies, max 8 targets/tick |
+| Arc | 8 | 0.5/sec | 180 | Chains to 5 enemies |
+
+**Upgrade Path (3 levels, acquired via duplicate level-up picks):**
+| Level | Effect |
+|-------|--------|
+| Lv 1 | Base stats (acquired) |
+| Lv 2 | +40% damage, +20% fire rate |
+| Lv 3 | +80% damage, +40% fire rate, gains special ability |
+
+**Lv 3 Special Abilities:**
+- **Gunner Lv3**: Fires bursts of 3 with piercing shots
+- **Scatter Lv3**: Pellets explode on hit (small AOE)
+- **Inferno Lv3**: Burn radius doubles, slows enemies by 30%
+- **Arc Lv3**: Chains to 5 enemies, 0.3s stun, 1.5s stun immunity per enemy
+
+**Fuel/Energy System:**
+| Drone Level | Drain Rate | Idle Duration |
+|-------------|-----------|---------------|
+| Lv 1 | 1.0/sec | 60 seconds |
+| Lv 2 | 0.8/sec | 75 seconds |
+| Lv 3 | 0.6/sec | 100 seconds |
+
+**Refuel Sources:**
+| Source | Fuel Restored |
+|--------|--------------|
+| XP orb pickup | +3 seconds |
+| Kill (by any source) | +1.5 seconds |
+| Kill (by the drone itself) | +3 seconds (bonus) |
+| Boss kill | +30 seconds |
+
+> In active combat (~2-3 kills/sec), fuel gain exceeds drain — drones feel effectively permanent while fighting. Fuel only drains meaningfully during lulls or boss kiting.
+
+**Power-Down Grace Window:**
+When a drone hits 0 fuel, it doesn't vanish immediately. It powers down (stops shooting, dims, orbit slows) and stays in its slot for **10 seconds**. If refueled during this window (kill something, grab XP), it reactivates. Otherwise it's lost for the run.
+
+**Fuel Visual Indicator:**
+Radial ring on each drone acts as a fuel gauge (depletes like a clock). When below 15 seconds, the drone's glow pulses as a warning. No extra HUD bars.
+
+**Performance Note (Inferno Drone):**
+Inferno Drone uses tick-based damage (every 0.5s, not per-frame) and caps at 8 enemies per tick via spatial hash query. Visual flame effect covers full area but damage is capped. Budget into optimization phase.
 
 **Exit Criteria:**
-- [ ] Double-tap opens placement menu
-- [ ] 4 turret types work correctly
-- [ ] Turrets auto-target enemies
-- [ ] 2 upgrade levels each
-- [ ] Max 4 turrets enforced
+- [ ] 4 drone types orbit and shoot correctly
+- [ ] Formation adjusts for 1-3 drones
+- [ ] Gunner auto-granted at Wave 3 with popup
+- [ ] Fuel system drains and refuels properly
+- [ ] Power-down grace window works
+- [ ] 3 upgrade levels per drone type
+- [ ] Max 3 drones enforced
 
 ---
 
@@ -790,7 +845,7 @@ fun findNearestTarget(
 - Armor +5
 - Ammo Capacity +25%
 - XP Magnet Range +50%
-- Turret Damage +20%
+- Drone Damage +20%
 
 **Exit Criteria:**
 - [ ] XP collection works
@@ -817,7 +872,7 @@ fun findNearestTarget(
 |-----------|-----|-------|-----------------|---------|
 | Rookie | 100 | 100 | Pistol | Balanced |
 | Soldier | 120 | 90 | Assault Rifle | +20% Ammo |
-| Mechanic | 80 | 100 | Wrench | -25% Turret Cost |
+| Mechanic | 80 | 100 | Wrench | +20% drone orbit speed, +15% drone DMG, -20% fuel drain |
 | Medic | 90 | 110 | SMG | Heal 1 HP/10 kills |
 | Pyro | 85 | 95 | Flamethrower | Fire immune |
 | Commando | 70 | 120 | Dual Pistols | +50% Fire Rate |
@@ -859,7 +914,7 @@ fun findNearestTarget(
 | Suburbs | Default | Cars as cover |
 | Mall | 500 supplies | Ammo rooms |
 | Hospital | 1000 supplies | Health spawns |
-| Military Base | 1500 supplies | Pre-placed turrets |
+| Military Base | 1500 supplies | Ammo caches, defensive walls |
 | Lab | Kill 5 bosses | Laser traps |
 
 **Exit Criteria:**
@@ -940,7 +995,7 @@ fun findNearestTarget(
 | Firepower | 10 | 150 | +5% Damage |
 | Mobility | 5 | 200 | +5% Speed |
 | Scavenger | 10 | 120 | +10% Drops |
-| Engineer | 5 | 250 | -10% Turret Cost |
+| Drone Master | 5 | 250 | +10% Drone Damage |
 | Ammo Belt | 10 | 100 | +10% Ammo |
 | Second Wind | 3 | 500 | +1 Revive |
 
@@ -999,7 +1054,7 @@ fun findNearestTarget(
 - Pickup collection
 - Level up
 - Boss spawn
-- Turret fire
+- Drone fire
 
 **Exit Criteria:**
 - [ ] All weapon sounds play
@@ -1030,7 +1085,7 @@ fun findNearestTarget(
 | Revive | Rewarded | Continue 50% HP | 1/run |
 | Double Supplies | Rewarded | 2× end supplies | 1/run |
 | Daily Crate | Rewarded | Random reward | 1/day |
-| Free Turret | Rewarded | Start with turret | 2/day |
+| Bonus Drone | Rewarded | Start with extra drone | 2/day |
 | Between Runs | Interstitial | - | 1 per 3 runs |
 
 **Anti-Fatigue Rules:**
@@ -1167,8 +1222,8 @@ Week 6      ████████████  Phase C1: Enemies
 Week 7      ██████        Phase C1: Enemies (finish)
             ██████        Phase C2: Spawning + C3: Day/Night
 Week 8      ████████████  Phase C4: Bosses
-Week 9      ████████████  Phase D1: Turrets
-Week 10     ██████        Phase D1: Turrets (finish)
+Week 9      ████████████  Phase D1: Drones
+Week 10     ██████        Phase D1: Drones (finish)
             ██████        Phase E1: Level-Up (start)
 Week 11     ██████        Phase E1: Level-Up (finish)
             ██████        Phase E2: Characters + E3: Maps (start)
