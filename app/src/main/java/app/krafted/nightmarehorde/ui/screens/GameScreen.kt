@@ -46,6 +46,7 @@ import app.krafted.nightmarehorde.game.weapons.WeaponType
 import app.krafted.nightmarehorde.ui.components.BossHealthBar
 import app.krafted.nightmarehorde.ui.components.HealthBar
 import app.krafted.nightmarehorde.ui.components.TimeIndicator
+import app.krafted.nightmarehorde.ui.components.XPBar
 import kotlinx.coroutines.delay
 
 @Composable
@@ -64,6 +65,8 @@ fun GameScreen(
     val dayNight by viewModel.dayNightState.collectAsState()
     val bossState by viewModel.bossState.collectAsState()
     val droneUnlockNotification by viewModel.droneUnlockNotification.collectAsState()
+    val xpState by viewModel.xpState.collectAsState()
+    val levelUpState by viewModel.levelUpState.collectAsState()
     val scope = rememberCoroutineScope()
 
     var frameTick by remember { mutableIntStateOf(0) }
@@ -148,13 +151,21 @@ fun GameScreen(
         }
 
         // HUD overlay — Health Bar (top-left)
-        HealthBar(
-            currentHealth = playerHealth.first,
-            maxHealth = playerHealth.second,
+        Column(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(16.dp)
-        )
+        ) {
+            HealthBar(
+                currentHealth = playerHealth.first,
+                maxHealth = playerHealth.second
+            )
+            XPBar(
+                xpProgress = xpState.xpProgress,
+                currentLevel = xpState.currentLevel,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
 
         // Game Timer (top-center, VS-style)
         val minutes = (gameTimeSec / 60f).toInt()
@@ -282,6 +293,14 @@ fun GameScreen(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .padding(24.dp)
+        )
+
+        // Level-Up Screen overlay
+        LevelUpScreen(
+            isVisible = levelUpState.isShowing,
+            level = levelUpState.level,
+            upgrades = levelUpState.upgrades,
+            onUpgradeSelected = { choice -> viewModel.selectUpgrade(choice) }
         )
     }
 }

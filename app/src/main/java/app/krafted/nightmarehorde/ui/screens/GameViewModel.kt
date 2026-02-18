@@ -13,6 +13,7 @@ import app.krafted.nightmarehorde.engine.core.components.SpriteComponent
 import app.krafted.nightmarehorde.engine.core.components.StatsComponent
 import app.krafted.nightmarehorde.engine.core.components.TransformComponent
 import app.krafted.nightmarehorde.engine.core.components.WeaponInventoryComponent
+import app.krafted.nightmarehorde.engine.core.components.XPComponent
 import app.krafted.nightmarehorde.engine.input.InputManager
 import app.krafted.nightmarehorde.engine.physics.CollisionResponseSystem
 import app.krafted.nightmarehorde.engine.physics.CollisionSystem
@@ -28,6 +29,12 @@ import app.krafted.nightmarehorde.game.data.CharacterType
 import app.krafted.nightmarehorde.game.data.DroneType
 import app.krafted.nightmarehorde.game.data.ObstacleType
 import app.krafted.nightmarehorde.game.data.BossType
+import app.krafted.nightmarehorde.game.data.EvolutionRegistry
+import app.krafted.nightmarehorde.game.data.SynergyRegistry
+import app.krafted.nightmarehorde.game.data.UpgradeCategory
+import app.krafted.nightmarehorde.game.data.UpgradeChoice
+import app.krafted.nightmarehorde.game.data.UpgradeContext
+import app.krafted.nightmarehorde.game.data.UpgradePool
 import app.krafted.nightmarehorde.game.data.ZombieType
 import app.krafted.nightmarehorde.game.entities.AmmoPickup
 import app.krafted.nightmarehorde.game.entities.BossEntity
@@ -58,6 +65,7 @@ import app.krafted.nightmarehorde.game.systems.WeaponManager
 import app.krafted.nightmarehorde.game.systems.WeaponSystem
 import app.krafted.nightmarehorde.game.systems.ZombieAnimationSystem
 import app.krafted.nightmarehorde.game.systems.ZombieDamageSystem
+import app.krafted.nightmarehorde.game.weapons.EvolvedWeaponFactory
 import app.krafted.nightmarehorde.game.weapons.WeaponType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -137,6 +145,28 @@ class GameViewModel @Inject constructor(
     val droneHudState: StateFlow<List<DroneManager.DroneHudInfo>> = _droneHudState.asStateFlow()
     private val _droneUnlockNotification = MutableStateFlow<DroneType?>(null)
     val droneUnlockNotification: StateFlow<DroneType?> = _droneUnlockNotification.asStateFlow()
+
+    // ─── XP / Level-Up State ────────────────────────────────────────────
+    data class XPState(
+        val currentXP: Int = 0,
+        val xpToNextLevel: Int = 19,
+        val currentLevel: Int = 1,
+        val xpProgress: Float = 0f
+    )
+
+    data class LevelUpState(
+        val isShowing: Boolean = false,
+        val level: Int = 1,
+        val upgrades: List<UpgradeChoice> = emptyList()
+    )
+
+    private val _xpState = MutableStateFlow(XPState())
+    val xpState: StateFlow<XPState> = _xpState.asStateFlow()
+
+    private val _levelUpState = MutableStateFlow(LevelUpState())
+    val levelUpState: StateFlow<LevelUpState> = _levelUpState.asStateFlow()
+
+    private val upgradePool = UpgradePool()
 
     // ─── Internal State ───────────────────────────────────────────────────
 
@@ -309,7 +339,9 @@ class GameViewModel @Inject constructor(
         }
         gameLoop.addEntity(background)
 
-        playerEntity = PlayerEntity.create(characterType = characterType, spawnX = 0f, spawnY = 0f)
+        playerEntity = PlayerEntity.create(characterType = characterType, spawnX = 0f, spawnY = 0f).apply {
+            addComponent(XPComponent())
+        }
         gameLoop.addEntity(playerEntity!!)
 
         aiSystem.setPlayer(playerEntity!!)
@@ -385,6 +417,36 @@ class GameViewModel @Inject constructor(
                         _playerHealth.value = Pair(health.currentHealth, health.maxHealth)
                     }
                     weaponManager.refreshHudState(player)
+
+                    // ─── XP / Level-Up HUD ─────────────────────────────
+                    val xpComp = player.getComponent(XPComponent::class)
+                    if (xpComp != null) {
+                        _xpState.value = XPState(
+                            currentXP = xpComp.currentXP,
+                            xpToNextLevel = xpComp.xpToNextLevel,
+                            currentLevel = xpComp.currentLevel,
+                            xpProgress = xpComp.xpProgress
+                        )
+
+                        // Check for level-up pending
+                        if (xpComp.levelUpPending && !_levelUpState.value.isShowing) {
+                            // Pause game and show level-up UI
+                            gameLoop.pause()
+                            val stats = player.getComponent(StatsComponent::class)
+                            val inventory = player.getComponent(WeaponInventoryComponent::class)
+                            val options = upgradePool.getRandomUpgrades(
+                                count = 3,
+                                luck = stats?.luck ?: 0f,
+                                droneManager = droneManager,
+                                weaponInventory = inventory
+                            )
+                            _levelUpState.value = LevelUpState(
+                                isShowing = true,
+                                level = xpComp.currentLevel + 1,
+                                upgrades = options
+                            )
+                        }
+                    }
                 }
                 // Update day/night HUD state as a single atomic snapshot
                 // (safe-read — may be null during teardown)
@@ -439,6 +501,10 @@ class GameViewModel @Inject constructor(
         droneManager?.reset()
         _droneHudState.value = emptyList()
         _droneUnlockNotification.value = null
+        _xpState.value = XPState()
+        _levelUpState.value = LevelUpState()
+        upgradePool.reset()
+        activatedSynergies.clear()
     }
 
     // ─── Weapon Switching (delegated) ─────────────────────────────────────
@@ -460,6 +526,88 @@ class GameViewModel @Inject constructor(
         _droneUnlockNotification.value = null
     }
 
+    // ─── Level-Up Selection ────────────────────────────────────────────────
+
+    /** Tracks which synergies have been activated this run. */
+    private val activatedSynergies = mutableSetOf<String>()
+
+    /**
+     * Called when the player selects an upgrade from the level-up screen.
+     * Applies the upgrade, records it in the pool, checks synergies, and resumes the game.
+     */
+    fun selectUpgrade(choice: UpgradeChoice) {
+        val upgrade = choice.upgrade
+        playerEntity?.let { player ->
+            val stats = player.getComponent(StatsComponent::class) ?: return@let
+            val health = player.getComponent(HealthComponent::class) ?: return@let
+            val inventory = player.getComponent(WeaponInventoryComponent::class)
+
+            // Record the pick in the pool
+            upgradePool.recordUpgradePicked(upgrade.id)
+
+            // Build context
+            val context = UpgradeContext(
+                stats = stats,
+                health = health,
+                weaponInventory = inventory,
+                droneManager = droneManager,
+                playerEntity = player,
+                currentLevel = choice.nextLevel
+            )
+
+            // Apply the upgrade
+            upgrade.apply(context)
+            Log.d("GameViewModel", "Applied upgrade: ${upgrade.name} Lv${choice.nextLevel}")
+
+            // Handle weapon evolution
+            if (upgrade.category == UpgradeCategory.WEAPON_EVOLUTION) {
+                handleWeaponEvolution(upgrade.id, player)
+            }
+
+            // Sync HP if maxHealth changed
+            if (stats.maxHealth > health.maxHealth) {
+                val increase = stats.maxHealth - health.maxHealth
+                health.maxHealth = stats.maxHealth
+                health.heal(increase)
+            }
+
+            // Check synergies
+            checkSynergies(context)
+
+            // Consume the level-up in the XP component
+            val xpComp = player.getComponent(XPComponent::class)
+            xpComp?.consumeLevelUp()
+        }
+
+        // Hide level-up UI and resume the game
+        _levelUpState.value = LevelUpState()
+        gameLoop.resume()
+    }
+
+    private fun handleWeaponEvolution(upgradeId: String, player: Entity) {
+        val recipe = EvolutionRegistry.getRecipeForEvolution(upgradeId) ?: return
+        val inventory = player.getComponent(WeaponInventoryComponent::class) ?: return
+        val evolvedWeapon = EvolvedWeaponFactory.create(recipe)
+        inventory.replaceWeapon(recipe.baseWeaponType, evolvedWeapon)
+        Log.d("GameViewModel", "Weapon evolved: ${recipe.displayName}")
+    }
+
+    private fun checkSynergies(context: UpgradeContext) {
+        for (synergy in SynergyRegistry.ALL) {
+            if (synergy.id in activatedSynergies) continue
+
+            val allMet = synergy.requiredUpgradeIds.zip(synergy.requiredMinLevels).all { (id, minLv) ->
+                upgradePool.getUpgradeLevel(id) >= minLv
+            }
+
+            if (allMet) {
+                synergy.apply(context)
+                activatedSynergies.add(synergy.id)
+                Log.d("GameViewModel", "Synergy activated: ${synergy.name}")
+            }
+        }
+    }
+
     // ─── Enemy Death Handler ──────────────────────────────────────────────
 
     private fun handleEnemyDeath(deadEntity: Entity) {
@@ -475,10 +623,12 @@ class GameViewModel @Inject constructor(
 
         // Spawn loot drops
         val inventory = playerEntity?.getComponent(WeaponInventoryComponent::class)
+        val healthComp = playerEntity?.getComponent(HealthComponent::class)
         lootDropSystem.tryDropLoot(
             deadEntity = deadEntity,
             elapsedGameTime = waveSpawner.elapsedGameTime,
-            unlockedWeaponTypes = inventory?.getUnlockedTypes() ?: emptyList()
+            unlockedWeaponTypes = inventory?.getUnlockedTypes() ?: emptyList(),
+            playerHealthComp = healthComp
         )
 
         // Bloater explodes on death

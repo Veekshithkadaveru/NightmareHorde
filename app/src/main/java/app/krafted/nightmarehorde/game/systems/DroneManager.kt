@@ -20,10 +20,13 @@ class DroneManager(
 ) {
     companion object {
         const val MAX_DRONES = 3
-        const val REFUEL_XP_ORB = 3f
-        const val REFUEL_ANY_KILL = 1.5f
-        const val REFUEL_DRONE_KILL = 3f
-        const val REFUEL_BOSS_KILL = 30f
+        // Level-up upgrade: full 60s refuel (half tank)
+        const val REFUEL_LEVEL_UP = 60f
+        // Combat drip — small but present to reward active play
+        const val REFUEL_XP_ORB = 0.5f
+        const val REFUEL_ANY_KILL = 0.3f
+        const val REFUEL_DRONE_KILL = 0.5f
+        const val REFUEL_BOSS_KILL = 10f
     }
 
     private val activeDroneIds = mutableListOf<Long>()

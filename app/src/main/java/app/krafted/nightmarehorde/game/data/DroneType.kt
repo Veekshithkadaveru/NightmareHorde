@@ -96,11 +96,7 @@ enum class DroneType(
         else -> 1.0f
     }
 
-    fun maxFuel(level: Int): Float = when (level) {
-        2 -> 75f
-        3 -> 100f
-        else -> 60f
-    }
+    fun maxFuel(level: Int): Float = 120f // Fixed 2-minute cap regardless of level
 
     /** Arc Lv3: chain to 5 instead of 3 */
     fun chainTargetsAtLevel(level: Int): Int = when {

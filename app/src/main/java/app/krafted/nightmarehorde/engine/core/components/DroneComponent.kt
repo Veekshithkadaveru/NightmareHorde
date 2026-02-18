@@ -15,8 +15,8 @@ data class DroneComponent(
     var slotIndex: Int = 0,
 
     // Fuel state (seconds)
-    var fuel: Float = 60f,
-    var maxFuel: Float = 60f,
+    var fuel: Float = 120f,
+    var maxFuel: Float = 120f,
 
     // Power-down grace
     var isPoweredDown: Boolean = false,
@@ -37,11 +37,11 @@ data class DroneComponent(
 ) : Component {
 
     val fuelPercent: Float get() = if (maxFuel > 0f) fuel / maxFuel else 0f
-    val isLowFuel: Boolean get() = fuel > 0f && fuel < 15f
+    val isLowFuel: Boolean get() = fuel > 0f && fuel < 20f
     val isOperational: Boolean get() = !isPoweredDown && !isLost && fuel > 0f
 
     companion object {
-        const val GRACE_WINDOW_SECONDS = 10f
+        const val GRACE_WINDOW_SECONDS = 5f
         const val ORBIT_RADIUS = 100f
         const val ORBIT_SPEED = 2.5f
         const val POWERED_DOWN_ORBIT_SPEED = 0.5f

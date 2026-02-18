@@ -32,6 +32,9 @@ class PlayerSystem(
     /** Tracks whether death has already been fired this session */
     private var deathFired = false
 
+    /** Accumulator for HP regen (fractional HP per frame) */
+    private var regenAccumulator = 0f
+
     /** Track last horizontal direction for sprite flipping (1 = right, -1 = left) */
     private var lastFacingDirection = 1
 
@@ -99,6 +102,16 @@ class PlayerSystem(
             camera.setPosition(playerTransform.x, playerTransform.y)
         }
 
+        // --- HP Regen ---
+        if (stats.hpRegen > 0f && health.isAlive && health.currentHealth < health.maxHealth) {
+            regenAccumulator += stats.hpRegen * deltaTime
+            if (regenAccumulator >= 1f) {
+                val healAmount = regenAccumulator.toInt()
+                health.heal(healAmount)
+                regenAccumulator -= healAmount.toFloat()
+            }
+        }
+
         // --- Invincibility Timer ---
         health.updateInvincibility(deltaTime)
 
@@ -114,10 +127,17 @@ class PlayerSystem(
             }
         }
 
-        // --- Death Check ---
+        // --- Death Check (with revival) ---
         if (!health.isAlive && !deathFired) {
-            deathFired = true
-            onPlayerDeath?.invoke()
+            if (stats.revivalCount > 0) {
+                stats.revivalCount--
+                val reviveHP = (health.maxHealth * 0.3f).toInt().coerceAtLeast(1)
+                health.setHealth(reviveHP)
+                health.triggerInvincibility(2f)
+            } else {
+                deathFired = true
+                onPlayerDeath?.invoke()
+            }
         }
     }
 
@@ -127,5 +147,6 @@ class PlayerSystem(
         lastFacingDirection = 1
         lastAimDirection = Vector2(1f, 0f)
         flashTimer = 0f
+        regenAccumulator = 0f
     }
 }

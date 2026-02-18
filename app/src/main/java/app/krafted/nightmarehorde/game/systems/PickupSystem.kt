@@ -4,6 +4,7 @@ import app.krafted.nightmarehorde.engine.core.Entity
 import app.krafted.nightmarehorde.engine.core.GameSystem
 import app.krafted.nightmarehorde.engine.core.components.PickupTagComponent
 import app.krafted.nightmarehorde.engine.core.components.PlayerTagComponent
+import app.krafted.nightmarehorde.engine.core.components.StatsComponent
 import app.krafted.nightmarehorde.engine.core.components.TransformComponent
 import app.krafted.nightmarehorde.engine.core.components.VelocityComponent
 import kotlin.math.sin
@@ -21,9 +22,11 @@ class PickupSystem : GameSystem(priority = 25) {
 
     override fun update(deltaTime: Float, entities: List<Entity>) {
         var playerTransform: TransformComponent? = null
+        var playerStats: StatsComponent? = null
         for (entity in entities) {
             if (entity.hasComponent(PlayerTagComponent::class)) {
                 playerTransform = entity.getComponent(TransformComponent::class)
+                playerStats = entity.getComponent(StatsComponent::class)
                 break
             }
         }
@@ -31,6 +34,7 @@ class PickupSystem : GameSystem(priority = 25) {
 
         val px = playerTransform.x
         val py = playerTransform.y
+        val magnetRadius = playerStats?.pickupRadius ?: MAGNET_RADIUS
 
         for (entity in entities) {
             if (!entity.isActive) continue
@@ -47,7 +51,7 @@ class PickupSystem : GameSystem(priority = 25) {
             val dx = px - transform.x
             val dy = py - transform.y
             val distSq = dx * dx + dy * dy
-            val magnetRadiusSq = MAGNET_RADIUS * MAGNET_RADIUS
+            val magnetRadiusSq = magnetRadius * magnetRadius
 
             if (distSq < magnetRadiusSq && velocity != null) {
                 val dist = sqrt(distSq)

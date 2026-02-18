@@ -2,10 +2,12 @@ package app.krafted.nightmarehorde.game.systems
 
 import app.krafted.nightmarehorde.engine.core.Entity
 import app.krafted.nightmarehorde.engine.core.GameLoop
+import app.krafted.nightmarehorde.engine.core.components.HealthComponent
 import app.krafted.nightmarehorde.engine.core.components.TransformComponent
 import app.krafted.nightmarehorde.engine.core.components.ZombieTypeComponent
 import app.krafted.nightmarehorde.game.entities.AmmoPickup
 import app.krafted.nightmarehorde.game.entities.HealthPickup
+import app.krafted.nightmarehorde.game.entities.XPOrbEntity
 import app.krafted.nightmarehorde.game.weapons.WeaponType
 import kotlin.random.Random
 
@@ -36,21 +38,38 @@ class LootDropSystem(
     fun tryDropLoot(
         deadEntity: Entity,
         elapsedGameTime: Float,
-        unlockedWeaponTypes: List<WeaponType>
+        unlockedWeaponTypes: List<WeaponType>,
+        playerHealthComp: HealthComponent?
     ) {
         val transform = deadEntity.getComponent(TransformComponent::class) ?: return
         val zombieType = deadEntity.getComponent(ZombieTypeComponent::class)
 
-        val xpMultiplier = (zombieType?.zombieType?.xpReward ?: 1).toFloat().coerceIn(1f, 10f) / 5f
-        val timeScalar = when {
-            elapsedGameTime < 60f -> 1.3f
-            elapsedGameTime < 180f -> 1.1f
-            elapsedGameTime < 600f -> 1.0f
-            else -> 0.85f
-        }
+        val xpReward = zombieType?.zombieType?.xpReward ?: 1
 
-        val effectiveHealthDrop = HEALTH_DROP_CHANCE * xpMultiplier * timeScalar
-        val effectiveAmmoDrop = AMMO_DROP_CHANCE * xpMultiplier * timeScalar
+        // ─── Always drop an XP orb ──────────────────────────────
+        val xpOffsetX = (rng.nextFloat() - 0.5f) * 15f
+        val xpOffsetY = (rng.nextFloat() - 0.5f) * 15f
+        gameLoop.addEntity(
+            XPOrbEntity.create(
+                x = transform.x + xpOffsetX,
+                y = transform.y + xpOffsetY,
+                xpValue = xpReward
+            )
+        )
+
+        // ─── RNG drops (ammo + health) ──────────────────────────
+        // "Pity System": Drop chance scales with missing health.
+        // - Full HP: 2% base chance (don't clutter screen when safe)
+        // - Low HP: Up to ~25% chance (help player recover)
+        val baseChance = 0.02f
+        val healthMissingPercent = 1f - (playerHealthComp?.healthPercent ?: 1f)
+        val pityBonus = healthMissingPercent * 0.25f
+        val healthDropChance = baseChance + pityBonus
+
+        val xpMultiplier = xpReward.toFloat().coerceIn(1f, 10f) / 5f
+        
+        val effectiveHealthDrop = healthDropChance * xpMultiplier
+        val effectiveAmmoDrop = AMMO_DROP_CHANCE * xpMultiplier
 
         val roll = rng.nextFloat()
 
@@ -72,6 +91,9 @@ class LootDropSystem(
                         AmmoPickup.create(x = dropX, y = dropY, amount = amount, weaponType = weaponType)
                     )
                 } else {
+                    // Fallback to health if no ammo types needed, but check roll against pure health chance logic?
+                    // actually if we land in ammo roll but can't drop ammo, generic behavior is usually nothing or health.
+                    // Let's drop health to be generous since we rolled a "drop" event.
                     gameLoop.addEntity(HealthPickup.create(x = dropX, y = dropY, healAmount = 10))
                 }
             }
@@ -88,3 +110,4 @@ class LootDropSystem(
         }
     }
 }
+
