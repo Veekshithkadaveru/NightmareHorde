@@ -8,7 +8,10 @@ import app.krafted.nightmarehorde.engine.core.components.AmmoPickupComponent
 import app.krafted.nightmarehorde.engine.core.components.CollisionLayer
 import app.krafted.nightmarehorde.engine.core.components.HealthComponent
 import app.krafted.nightmarehorde.engine.core.components.HealthPickupComponent
+import app.krafted.nightmarehorde.engine.core.components.StatsComponent
 import app.krafted.nightmarehorde.engine.core.components.WeaponInventoryComponent
+import app.krafted.nightmarehorde.engine.core.components.XPComponent
+import app.krafted.nightmarehorde.engine.core.components.XPOrbPickupComponent
 import app.krafted.nightmarehorde.engine.physics.CollisionSystem
 
 /**
@@ -63,13 +66,27 @@ class PickupCollisionSystem(
         // Skip if this pickup is on rejection cooldown
         if (rejectionCooldowns.containsKey(pickup.id)) return
 
+        // Try XP orb pickup
+        val xpOrb = pickup.getComponent(XPOrbPickupComponent::class)
+        if (xpOrb != null) {
+            val xpComp = player.getComponent(XPComponent::class)
+            if (xpComp != null) {
+                val stats = player.getComponent(StatsComponent::class)
+                val effectiveXP = (xpOrb.xpValue * (stats?.xpMultiplier ?: 1f)).toInt().coerceAtLeast(1)
+                xpComp.addXP(effectiveXP)
+                gameLoop.removeEntity(pickup)
+            }
+            return
+        }
+
         // Try ammo pickup
         val ammoComp = pickup.getComponent(AmmoPickupComponent::class)
         if (ammoComp != null) {
             val inventory = player.getComponent(WeaponInventoryComponent::class) ?: return
+            val stats = player.getComponent(StatsComponent::class)
             val targetType = ammoComp.weaponType ?: inventory.activeWeaponType
             if (inventory.hasWeapon(targetType)) {
-                inventory.addAmmo(targetType, ammoComp.amount)
+                inventory.addAmmo(targetType, ammoComp.amount, stats?.ammoCapacityMultiplier ?: 1f)
                 Log.d("PickupCollisionSystem", "Picked up ${ammoComp.amount} ammo for $targetType")
                 gameLoop.removeEntity(pickup)
             }

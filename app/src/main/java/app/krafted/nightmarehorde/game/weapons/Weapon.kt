@@ -38,6 +38,15 @@ abstract class Weapon(
     fun resetCooldown() {
         cooldownTimer = 1f / fireRate
     }
+
+    /**
+     * Apply cooldown reduction from player stats. Call after [resetCooldown].
+     * @param reduction fraction to reduce (0.0 = none, 0.7 = 70% faster). Clamped to [0, 0.7].
+     */
+    fun applyCooldownReduction(reduction: Float) {
+        val factor = 1f - reduction.coerceIn(0f, 0.7f)
+        cooldownTimer *= factor
+    }
 }
 
 enum class WeaponType {

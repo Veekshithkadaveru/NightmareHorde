@@ -67,6 +67,14 @@ class HealthComponent(
     }
 
     /**
+     * Manually trigger invincibility for a given duration (e.g. after revival).
+     */
+    fun triggerInvincibility(duration: Float) {
+        isInvincible = true
+        invincibilityTimer = duration
+    }
+
+    /**
      * Update invincibility timer. Called each frame by PlayerSystem.
      */
     fun updateInvincibility(deltaTime: Float) {

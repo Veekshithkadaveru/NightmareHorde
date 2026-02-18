@@ -7,11 +7,15 @@ import app.krafted.nightmarehorde.engine.core.GameSystem
 import app.krafted.nightmarehorde.engine.core.Vector2
 import app.krafted.nightmarehorde.engine.core.components.DroneComponent
 import app.krafted.nightmarehorde.engine.core.components.HealthComponent
+import app.krafted.nightmarehorde.engine.core.components.ObstacleTagComponent
 import app.krafted.nightmarehorde.engine.core.components.PlayerTagComponent
+import app.krafted.nightmarehorde.engine.core.components.StatsComponent
 import app.krafted.nightmarehorde.engine.core.components.SpriteComponent
 import app.krafted.nightmarehorde.engine.core.components.TransformComponent
 import app.krafted.nightmarehorde.game.data.DroneType
+import app.krafted.nightmarehorde.engine.core.components.ColliderComponent
 import app.krafted.nightmarehorde.engine.core.components.ParticleComponent
+import app.krafted.nightmarehorde.engine.physics.Collider
 import app.krafted.nightmarehorde.game.entities.HitEffectEntity
 import app.krafted.nightmarehorde.game.entities.ProjectileEntity
 import kotlin.math.cos
@@ -32,6 +36,10 @@ class DroneSystem(
     // Reusable buffers to avoid per-frame allocations
     private val droneBuffer = ArrayList<Entity>(3)
     private val targetBuffer = ArrayList<Entity>(128)
+    private val obstacleBuffer = ArrayList<Entity>(64)
+
+    // Cached per frame for drone multipliers
+    private var cachedPlayerStats: StatsComponent? = null
 
     /** Called when Inferno/Arc drone kills an enemy directly (not via projectile). */
     var onDroneKill: ((deadEntity: Entity, droneEntityId: Long) -> Unit)? = null
@@ -42,10 +50,13 @@ class DroneSystem(
         droneBuffer.clear()
         targetBuffer.clear()
 
+        cachedPlayerStats = null
+        obstacleBuffer.clear()
         for (entity in entities) {
             if (!entity.isActive) continue
             if (entity.hasComponent(PlayerTagComponent::class)) {
                 playerTransform = entity.getComponent(TransformComponent::class)
+                cachedPlayerStats = entity.getComponent(StatsComponent::class)
             }
             if (entity.hasComponent(DroneComponent::class)) {
                 droneBuffer.add(entity)
@@ -55,6 +66,9 @@ class DroneSystem(
                 !entity.hasComponent(DroneComponent::class)
             ) {
                 targetBuffer.add(entity)
+            }
+            if (entity.hasComponent(ObstacleTagComponent::class)) {
+                obstacleBuffer.add(entity)
             }
         }
 
@@ -103,7 +117,9 @@ class DroneSystem(
 
     private fun updateFuel(drone: DroneComponent, deltaTime: Float) {
         if (drone.isPoweredDown) return
-        val drainRate = drone.droneType.fuelDrainRate(drone.level)
+        val baseDrainRate = drone.droneType.fuelDrainRate(drone.level)
+        val fuelEfficiency = cachedPlayerStats?.droneFuelEfficiency ?: 1f
+        val drainRate = baseDrainRate / fuelEfficiency.coerceAtLeast(0.1f)
         drone.fuel -= drainRate * deltaTime
         if (drone.fuel <= 0f) {
             drone.fuel = 0f
@@ -165,7 +181,8 @@ class DroneSystem(
     ) {
         val droneType = drone.droneType
         val effectiveFireRate = droneType.fireRateAtLevel(drone.level)
-        val effectiveDamage = droneType.damageAtLevel(drone.level)
+        val baseDamage = droneType.damageAtLevel(drone.level)
+        val effectiveDamage = baseDamage * (cachedPlayerStats?.droneDamageMultiplier ?: 1f)
 
         // Tick cooldown
         drone.fireCooldown -= deltaTime
@@ -326,6 +343,9 @@ class DroneSystem(
 
             val distSq = transform.distanceSquaredTo(targetTransform)
             if (distSq <= effectiveRangeSquared) {
+                // Skip targets hidden behind an obstacle
+                if (isBlockedByObstacle(transform.x, transform.y, targetTransform.x, targetTransform.y)) continue
+
                 health.takeDamage(damage.toInt())
                 hitCount++
 
@@ -347,6 +367,10 @@ class DroneSystem(
         damage: Float,
         droneEntityId: Long
     ) {
+        // Skip first target if it's behind an obstacle from the drone
+        val firstTargetTransform = firstTarget.getComponent(TransformComponent::class) ?: return
+        if (isBlockedByObstacle(droneTransform.x, droneTransform.y, firstTargetTransform.x, firstTargetTransform.y)) return
+
         val maxChain = drone.droneType.chainTargetsAtLevel(drone.level)
         val hitIds = mutableSetOf<Long>()
         var currentTarget = firstTarget
@@ -358,6 +382,9 @@ class DroneSystem(
             val targetTransform = currentTarget.getComponent(TransformComponent::class) ?: break
             val health = currentTarget.getComponent(HealthComponent::class) ?: break
             if (!health.isAlive) break
+
+            // Skip target if it's behind an obstacle from the previous chain link
+            if (isBlockedByObstacle(prevTransform.x, prevTransform.y, targetTransform.x, targetTransform.y)) break
 
             health.takeDamage(damage.toInt())
             hitIds.add(currentTarget.id)
@@ -373,7 +400,7 @@ class DroneSystem(
 
             prevTransform = targetTransform
 
-            // Find next chain target
+            // Find next chain target (also respects obstacle LOS in next iteration)
             val nextTarget = findNearestTargetExcluding(targetTransform, drone.droneType.range, hitIds)
             if (nextTarget != null) {
                 currentTarget = nextTarget
@@ -404,6 +431,66 @@ class DroneSystem(
             }
         }
         return nearest
+    }
+
+    // ── Obstacle Line-of-Sight ────────────────────────────────────────────
+
+    /**
+     * Returns true if a segment from (x1,y1) to (x2,y2) is blocked by any obstacle AABB.
+     * Uses a segment-vs-AABB slab test (Liang–Barsky style).
+     */
+    private fun isBlockedByObstacle(x1: Float, y1: Float, x2: Float, y2: Float): Boolean {
+        for (obs in obstacleBuffer) {
+            val t = obs.getComponent(TransformComponent::class) ?: continue
+            val c = obs.getComponent(ColliderComponent::class) ?: continue
+            val aabb = c.collider as? Collider.AABB ?: continue
+            if (segmentIntersectsAabb(x1, y1, x2, y2, t.x, t.y, aabb.halfWidth, aabb.halfHeight)) {
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
+     * Slab-method segment vs AABB intersection test.
+     * Returns true if the segment from (sx,sy)→(ex,ey) overlaps the axis-aligned box.
+     */
+    private fun segmentIntersectsAabb(
+        sx: Float, sy: Float, ex: Float, ey: Float,
+        bx: Float, by: Float, hw: Float, hh: Float
+    ): Boolean {
+        val dx = ex - sx
+        val dy = ey - sy
+        var tMin = 0f
+        var tMax = 1f
+
+        // X slab
+        if (kotlin.math.abs(dx) < 1e-6f) {
+            if (sx < bx - hw || sx > bx + hw) return false
+        } else {
+            val invDx = 1f / dx
+            var t1 = ((bx - hw) - sx) * invDx
+            var t2 = ((bx + hw) - sx) * invDx
+            if (t1 > t2) { val tmp = t1; t1 = t2; t2 = tmp }
+            tMin = maxOf(tMin, t1)
+            tMax = minOf(tMax, t2)
+            if (tMin > tMax) return false
+        }
+
+        // Y slab
+        if (kotlin.math.abs(dy) < 1e-6f) {
+            if (sy < by - hh || sy > by + hh) return false
+        } else {
+            val invDy = 1f / dy
+            var t1 = ((by - hh) - sy) * invDy
+            var t2 = ((by + hh) - sy) * invDy
+            if (t1 > t2) { val tmp = t1; t1 = t2; t2 = tmp }
+            tMin = maxOf(tMin, t1)
+            tMax = minOf(tMax, t2)
+            if (tMin > tMax) return false
+        }
+
+        return true
     }
 
     // ── VFX ──────────────────────────────────────────────────────────────

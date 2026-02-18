@@ -8,6 +8,7 @@ import app.krafted.nightmarehorde.engine.core.components.BossComponent
 import app.krafted.nightmarehorde.engine.core.components.ColliderComponent
 import app.krafted.nightmarehorde.engine.core.components.CollisionLayer
 import app.krafted.nightmarehorde.engine.core.components.HealthComponent
+import app.krafted.nightmarehorde.engine.core.components.ObstacleTagComponent
 import app.krafted.nightmarehorde.engine.core.components.ProjectileComponent
 import app.krafted.nightmarehorde.engine.core.components.StatsComponent
 import app.krafted.nightmarehorde.engine.core.components.TransformComponent
@@ -29,14 +30,18 @@ class CombatSystem(private val gameLoop: app.krafted.nightmarehorde.engine.core.
     // unnecessary list allocations and the associated GC pressure.
     private val projectileBuffer = ArrayList<Entity>(64)
     private val targetBuffer = ArrayList<Entity>(128)
+    private val obstacleBuffer = ArrayList<Entity>(64)
 
     override fun update(deltaTime: Float, entities: List<Entity>) {
         // Single-pass classification into reusable buffers (zero allocation)
         projectileBuffer.clear()
         targetBuffer.clear()
+        obstacleBuffer.clear()
         for (entity in entities) {
+            if (!entity.isActive) continue
             if (entity.hasComponent(ProjectileComponent::class)) projectileBuffer.add(entity)
             if (entity.hasComponent(HealthComponent::class)) targetBuffer.add(entity)
+            if (entity.hasComponent(ObstacleTagComponent::class)) obstacleBuffer.add(entity)
         }
 
         for (projectileEntity in projectileBuffer) {
@@ -45,6 +50,27 @@ class CombatSystem(private val gameLoop: app.krafted.nightmarehorde.engine.core.
 
             val projTransform = projectileEntity.getComponent(TransformComponent::class) ?: continue
             val projCollider = projectileEntity.getComponent(ColliderComponent::class) ?: continue
+            val projRadius = (projCollider.collider as? Collider.Circle)?.radius ?: 0f
+
+            // ── Obstacle collision: deactivate projectile if it hits a wall ──
+            var blockedByObstacle = false
+            for (obsEntity in obstacleBuffer) {
+                val obsTransform = obsEntity.getComponent(TransformComponent::class) ?: continue
+                val obsCollider = obsEntity.getComponent(ColliderComponent::class) ?: continue
+                val aabb = obsCollider.collider as? Collider.AABB ?: continue
+                if (Collider.circleVsAabb(
+                        projTransform.x, projTransform.y, projRadius,
+                        obsTransform.x, obsTransform.y, aabb.halfWidth, aabb.halfHeight
+                    )
+                ) {
+                    blockedByObstacle = true
+                    break
+                }
+            }
+            if (blockedByObstacle) {
+                projectileEntity.isActive = false
+                continue
+            }
 
             for (targetEntity in targetBuffer) {
                 if (targetEntity.id == projectile.ownerId || !targetEntity.isActive) continue

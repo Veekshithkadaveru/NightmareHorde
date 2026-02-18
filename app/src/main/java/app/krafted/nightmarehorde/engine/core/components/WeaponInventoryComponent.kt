@@ -59,16 +59,16 @@ class WeaponInventoryComponent : Component {
     fun hasWeapon(type: WeaponType): Boolean = weapons.containsKey(type)
 
     /**
-     * Add ammo for the given weapon type, capped at [weapon.maxAmmo * AMMO_CAP_MULTIPLIER].
-     * Negative amounts are ignored for safety.
+     * Add ammo for the given weapon type, capped at [weapon.maxAmmo * AMMO_CAP_MULTIPLIER * capacityMultiplier].
+     * @param capacityMultiplier from StatsComponent.ammoCapacityMultiplier (1.0 = default cap)
      * @return true if ammo was added, false if weapon not found, infinite, or invalid amount.
      */
     @Synchronized
-    fun addAmmo(type: WeaponType, amount: Int): Boolean {
+    fun addAmmo(type: WeaponType, amount: Int, capacityMultiplier: Float = 1f): Boolean {
         if (amount <= 0) return false
         val slot = weapons[type] ?: return false
         if (slot.weapon.infiniteAmmo) return false
-        val cap = slot.weapon.maxAmmo * AMMO_CAP_MULTIPLIER
+        val cap = (slot.weapon.maxAmmo * AMMO_CAP_MULTIPLIER * capacityMultiplier).toInt()
         slot.currentAmmo = (slot.currentAmmo + amount).coerceAtMost(cap)
         return true
     }
@@ -113,5 +113,15 @@ class WeaponInventoryComponent : Component {
     fun fallbackToDefault(): WeaponType {
         activeWeaponType = WeaponType.PISTOL
         return activeWeaponType
+    }
+
+    /**
+     * Replace a weapon in the inventory with an evolved version.
+     * Preserves current ammo and slot position.
+     */
+    @Synchronized
+    fun replaceWeapon(type: WeaponType, newWeapon: Weapon) {
+        val slot = weapons[type] ?: return
+        weapons[type] = WeaponSlot(newWeapon, slot.currentAmmo)
     }
 }

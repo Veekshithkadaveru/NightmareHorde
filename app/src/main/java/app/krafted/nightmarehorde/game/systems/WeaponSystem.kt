@@ -5,6 +5,7 @@ import app.krafted.nightmarehorde.engine.core.Entity
 import app.krafted.nightmarehorde.engine.core.GameLoop
 import app.krafted.nightmarehorde.engine.core.GameSystem
 import app.krafted.nightmarehorde.engine.core.Vector2
+import app.krafted.nightmarehorde.engine.core.components.StatsComponent
 import app.krafted.nightmarehorde.engine.core.components.TransformComponent
 import app.krafted.nightmarehorde.engine.core.components.WeaponComponent
 import app.krafted.nightmarehorde.engine.core.components.WeaponInventoryComponent
@@ -50,6 +51,12 @@ class WeaponSystem(
 
             fireWeapon(entity, weapon, transform, direction, inventory)
             weapon.resetCooldown()
+
+            // Apply cooldown reduction from stats
+            val stats = entity.getComponent(StatsComponent::class)
+            if (stats != null && stats.cooldownReduction > 0f) {
+                weapon.applyCooldownReduction(stats.cooldownReduction)
+            }
         }
     }
     
@@ -108,7 +115,8 @@ class WeaponSystem(
         transform: TransformComponent,
         direction: Vector2
     ) {
-        val count = weapon.projectileCount
+        val stats = owner.getComponent(StatsComponent::class)
+        val count = weapon.projectileCount + (stats?.projectileCountBonus ?: 0)
         var startAngle = 0f
         var angleStep = 0f
 
@@ -185,9 +193,11 @@ class WeaponSystem(
         transform: TransformComponent,
         direction: Vector2
     ) {
+        val stats = owner.getComponent(StatsComponent::class)
+        val areaMult = stats?.areaMultiplier ?: 1f
         val halfArc = WHIP_ARC_DEGREES / 2f
         val angleStep = WHIP_ARC_DEGREES / (WHIP_SEGMENT_COUNT - 1).coerceAtLeast(1)
-        val reachDistance = weapon.range
+        val reachDistance = weapon.range * areaMult
 
         for (i in 0 until WHIP_SEGMENT_COUNT) {
             val sweepAngle = -halfArc + angleStep * i

@@ -808,13 +808,13 @@ Radial ring on each drone acts as a fuel gauge (depletes like a clock). When bel
 Inferno Drone uses tick-based damage (every 0.5s, not per-frame) and caps at 8 enemies per tick via spatial hash query. Visual flame effect covers full area but damage is capped. Budget into optimization phase.
 
 **Exit Criteria:**
-- [ ] 4 drone types orbit and shoot correctly
-- [ ] Formation adjusts for 1-3 drones
-- [ ] Gunner auto-granted at Wave 3 with popup
-- [ ] Fuel system drains and refuels properly
-- [ ] Power-down grace window works
-- [ ] 3 upgrade levels per drone type
-- [ ] Max 3 drones enforced
+- [x] 4 drone types orbit and shoot correctly
+- [x] Formation adjusts for 1-3 drones
+- [x] Gunner auto-granted at Wave 3 with popup
+- [x] Fuel system drains and refuels properly
+- [x] Power-down grace window works
+- [x] 3 upgrade levels per drone type
+- [x] Max 3 drones enforced
 
 ---
 

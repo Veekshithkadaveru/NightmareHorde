@@ -34,6 +34,7 @@ import javax.inject.Singleton
 class GameLoop @Inject constructor() {
     private var job: Job? = null
     private val isRunning = AtomicBoolean(false)
+    private val _isPaused = AtomicBoolean(false)
 
     // Systems rarely mutate — CopyOnWriteArrayList is fine for them
     private val systems = CopyOnWriteArrayList<GameSystem>()
@@ -102,10 +103,30 @@ class GameLoop @Inject constructor() {
 
     fun stop() {
         if (isRunning.getAndSet(false)) {
+            _isPaused.set(false)
             job?.cancel()
             Log.d("GameLoop", "Game Loop Stopped")
         }
     }
+
+    /**
+     * Pauses the game loop — systems stop updating but entities and state
+     * are preserved. The coroutine stays alive so rendering continues.
+     */
+    fun pause() {
+        _isPaused.set(true)
+        Log.d("GameLoop", "Game Loop Paused")
+    }
+
+    /**
+     * Resumes a paused game loop.
+     */
+    fun resume() {
+        _isPaused.set(false)
+        Log.d("GameLoop", "Game Loop Resumed")
+    }
+
+    val isPaused: Boolean get() = _isPaused.get()
 
     fun addSystem(system: GameSystem) {
         systems.add(system)
@@ -158,6 +179,12 @@ class GameLoop @Inject constructor() {
             while (true) {
                 val e = pendingAdditions.poll() ?: break
                 entities.add(e)
+            }
+
+            // 1b. If paused, still publish snapshot (for rendering) but skip systems.
+            if (_isPaused.get()) {
+                snapshot = ArrayList(entities)
+                return
             }
 
             // 2. Run all systems.  `entities` is not structurally modified during
