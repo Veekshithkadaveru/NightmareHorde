@@ -48,7 +48,7 @@ todos:
       - enemies
   - id: drones
     content: Implement 4 orbital drone types with fuel system and upgrades
-    status: pending
+    status: completed
     dependencies:
       - combat
       - spawning
@@ -64,7 +64,7 @@ todos:
       - day-night
   - id: levelup
     content: Build XP system and level-up screen with 20+ upgrades
-    status: pending
+    status: completed
     dependencies:
       - combat
   - id: characters
@@ -159,10 +159,10 @@ todos:
 - [x] **C4: Boss Battles** <!-- id: bosses -->
 
 ### 🔧 Phase D: Drone System
-- [ ] **D1: Orbital Drones** <!-- id: drones -->
+- [x] **D1: Orbital Drones** <!-- id: drones -->
 
 ### ⬆️ Phase E: Progression
-- [ ] **E1: Level-Up System** <!-- id: levelup -->
+- [x] **E1: Level-Up System** <!-- id: levelup -->
 - [ ] **E2: Character Classes** <!-- id: characters -->
 - [ ] **E3: Map Environments** <!-- id: maps -->
 - [ ] **E4: Rescue Missions** <!-- id: rescue -->
