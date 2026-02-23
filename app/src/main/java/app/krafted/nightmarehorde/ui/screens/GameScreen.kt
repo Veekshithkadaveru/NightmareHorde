@@ -40,6 +40,7 @@ import app.krafted.nightmarehorde.engine.input.GestureHandler
 import app.krafted.nightmarehorde.engine.input.VirtualJoystick
 import app.krafted.nightmarehorde.engine.input.detectGameGestures
 import app.krafted.nightmarehorde.engine.rendering.GameSurface
+import app.krafted.nightmarehorde.game.data.CharacterClass
 import app.krafted.nightmarehorde.game.data.CharacterType
 import app.krafted.nightmarehorde.game.systems.DayNightCycle
 import app.krafted.nightmarehorde.game.weapons.WeaponType
@@ -51,7 +52,7 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun GameScreen(
-    characterType: CharacterType = CharacterType.CYBERPUNK_DETECTIVE,
+    characterClass: CharacterClass = CharacterClass.ROOKIE,
     viewModel: GameViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -102,7 +103,7 @@ fun GameScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.startGame(characterType)
+        viewModel.startGame(characterClass)
     }
 
     LaunchedEffect(Unit) {
@@ -313,6 +314,7 @@ private fun getWeaponAbbreviation(type: WeaponType): String {
         WeaponType.ASSAULT_RIFLE -> "AR"
         WeaponType.SMG -> "SMG"
         WeaponType.FLAMETHROWER -> "FLM"
+        WeaponType.SWORD -> "SWD"
     }
 }
 
@@ -324,5 +326,6 @@ private fun getWeaponDisplayName(type: WeaponType): String {
         WeaponType.ASSAULT_RIFLE -> "Assault Rifle"
         WeaponType.SMG -> "SMG"
         WeaponType.FLAMETHROWER -> "Flamethrower"
+        WeaponType.SWORD -> "Broad Sword"
     }
 }

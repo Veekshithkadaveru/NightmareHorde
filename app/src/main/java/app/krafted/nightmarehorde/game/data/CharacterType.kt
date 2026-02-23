@@ -113,5 +113,65 @@ enum class CharacterType(
         runFrameCount = 4,
         scale = 2.5f,
         colliderRadius = 12f
+    ),
+
+    SOLDIER(
+        displayName = "Soldier",
+        idleTextureKey = "soldier_idle_sheet",
+        runTextureKey = "soldier_run_sheet",
+        frameWidth = 32,
+        frameHeight = 32,
+        idleFrameCount = 6,
+        runFrameCount = 6,
+        scale = 3f,
+        colliderRadius = 10f
+    ),
+
+    COMMANDO(
+        displayName = "Commando",
+        idleTextureKey = "commando_idle_sheet",
+        runTextureKey = "commando_run_sheet",
+        frameWidth = 32,
+        frameHeight = 32,
+        idleFrameCount = 6,
+        runFrameCount = 6,
+        scale = 3f,
+        colliderRadius = 10f
+    ),
+
+    SPACE_MARINE(
+        displayName = "Space Marine",
+        idleTextureKey = "spacemarine_idle_sheet",
+        runTextureKey = "spacemarine_run_sheet",
+        frameWidth = 75,
+        frameHeight = 48,
+        idleFrameCount = 4,
+        runFrameCount = 10,
+        scale = 2f,
+        colliderRadius = 16f
+    ),
+
+    ENFORCER(
+        displayName = "Enforcer",
+        idleTextureKey = "enforcer_idle_sheet",
+        runTextureKey = "enforcer_run_sheet",
+        frameWidth = 64,
+        frameHeight = 60,
+        idleFrameCount = 2,
+        runFrameCount = 6,
+        scale = 2f,
+        colliderRadius = 16f
+    ),
+
+    HUNTER(
+        displayName = "Hunter",
+        idleTextureKey = "hunter_idle_sheet",
+        runTextureKey = "hunter_run_sheet",
+        frameWidth = 62,
+        frameHeight = 54,
+        idleFrameCount = 6,
+        runFrameCount = 7,
+        scale = 2.2f,
+        colliderRadius = 15f
     )
 }

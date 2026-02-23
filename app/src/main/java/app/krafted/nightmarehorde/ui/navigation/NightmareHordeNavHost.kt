@@ -5,7 +5,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import app.krafted.nightmarehorde.game.data.CharacterType
+import app.krafted.nightmarehorde.game.data.CharacterClass
+import app.krafted.nightmarehorde.ui.screens.CharacterSelectScreen
 import app.krafted.nightmarehorde.ui.screens.GameScreen
 import app.krafted.nightmarehorde.ui.screens.MainMenuScreen
 
@@ -15,11 +16,18 @@ fun NightmareHordeNavHost() {
 
     when (val screen = currentScreen) {
         is Screen.MainMenu -> MainMenuScreen(
-            onPlayClicked = { currentScreen = Screen.Game(CharacterType.CYBERPUNK_DETECTIVE) }
+            onPlayClicked = { currentScreen = Screen.CharacterSelect }
+        )
+
+        is Screen.CharacterSelect -> CharacterSelectScreen(
+            onCharacterSelected = { characterClass ->
+                currentScreen = Screen.Game(characterClass)
+            },
+            onBack = { currentScreen = Screen.MainMenu }
         )
 
         is Screen.Game -> GameScreen(
-            characterType = screen.characterType
+            characterClass = screen.characterClass
         )
 
         else -> {}

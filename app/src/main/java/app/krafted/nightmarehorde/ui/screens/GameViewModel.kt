@@ -25,6 +25,7 @@ import app.krafted.nightmarehorde.engine.rendering.DroneRenderer
 import app.krafted.nightmarehorde.engine.rendering.ParticleRenderer
 import app.krafted.nightmarehorde.engine.rendering.SpriteRenderer
 import app.krafted.nightmarehorde.game.data.AssetManager
+import app.krafted.nightmarehorde.game.data.CharacterClass
 import app.krafted.nightmarehorde.game.data.CharacterType
 import app.krafted.nightmarehorde.game.data.DroneType
 import app.krafted.nightmarehorde.game.data.ObstacleType
@@ -199,7 +200,8 @@ class GameViewModel @Inject constructor(
 
     // ─── Game Lifecycle ───────────────────────────────────────────────────
 
-    fun startGame(characterType: CharacterType = CharacterType.CYBERPUNK_DETECTIVE) {
+    fun startGame(characterClass: CharacterClass = CharacterClass.ROOKIE) {
+        val characterType = characterClass.characterType
         if (isGameRunning) return
         isGameRunning = true
         _killCount.value = 0
@@ -339,7 +341,7 @@ class GameViewModel @Inject constructor(
         }
         gameLoop.addEntity(background)
 
-        playerEntity = PlayerEntity.create(characterType = characterType, spawnX = 0f, spawnY = 0f).apply {
+        playerEntity = PlayerEntity.create(characterClass = characterClass, spawnX = 0f, spawnY = 0f).apply {
             addComponent(XPComponent())
         }
         gameLoop.addEntity(playerEntity!!)
