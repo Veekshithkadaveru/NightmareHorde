@@ -94,8 +94,11 @@ class AssetManager @Inject constructor(
                 return null
             }
             
-            // Try decoding as bitmap first
-            val androidBitmap = BitmapFactory.decodeResource(context.resources, resId)
+            // Decode with explicit ARGB_8888 to guarantee alpha channel preservation
+            val options = BitmapFactory.Options().apply {
+                inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
+            }
+            val androidBitmap = BitmapFactory.decodeResource(context.resources, resId, options)
             if (androidBitmap != null) {
                 return androidBitmap.asImageBitmap()
             }

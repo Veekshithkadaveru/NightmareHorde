@@ -9,6 +9,7 @@ import app.krafted.nightmarehorde.game.weapons.FlamethrowerWeapon
 import app.krafted.nightmarehorde.game.weapons.PistolWeapon
 import app.krafted.nightmarehorde.game.weapons.SMGWeapon
 import app.krafted.nightmarehorde.game.weapons.ShotgunWeapon
+import app.krafted.nightmarehorde.game.weapons.BroadSwordWeapon
 import app.krafted.nightmarehorde.game.weapons.SwordWeapon
 import app.krafted.nightmarehorde.game.weapons.Weapon
 import app.krafted.nightmarehorde.game.weapons.WeaponType
@@ -62,6 +63,9 @@ class WeaponManager {
         val inventory = playerEntity.getComponent(WeaponInventoryComponent::class) ?: return
 
         WeaponInventoryComponent.UNLOCK_THRESHOLDS.forEach { (weaponType, threshold) ->
+            // Skip Whip Blade unlock if the player already has a Sword (Knight)
+            if (weaponType == WeaponType.MELEE && inventory.hasWeapon(WeaponType.SWORD)) return@forEach
+
             if (kills >= threshold && !inventory.hasWeapon(weaponType)) {
                 val weapon = createWeaponForType(weaponType)
                 inventory.addWeapon(weapon, initialAmmo = weapon.maxAmmo)
@@ -125,6 +129,7 @@ class WeaponManager {
         _currentAmmo.value = if (slot?.weapon?.infiniteAmmo == true) -1 else slot?.currentAmmo ?: 0
         _activeWeaponType.value = inventory.activeWeaponType
         _currentWeaponName.value = inventory.getActiveWeapon()?.name ?: "Unknown"
+        _unlockedWeapons.value = inventory.getUnlockedTypes()
     }
 
     fun updateAmmoDisplay(inventory: WeaponInventoryComponent) {
@@ -143,6 +148,7 @@ class WeaponManager {
                 WeaponType.SHOTGUN -> ShotgunWeapon()
                 WeaponType.SMG -> SMGWeapon()
                 WeaponType.FLAMETHROWER -> FlamethrowerWeapon()
+                WeaponType.SWORD -> BroadSwordWeapon()
             }
         }
     }

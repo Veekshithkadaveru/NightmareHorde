@@ -21,7 +21,9 @@ abstract class Weapon(
     /** Whether this weapon uses flame-style particle firing (cone of fire particles). */
     val isFlame: Boolean = false,
     /** Whether this weapon uses melee-style arc sweep (whip blade). */
-    val isMelee: Boolean = false
+    val isMelee: Boolean = false,
+    /** Whether this weapon uses a focused sword slash (tighter arc than whip). */
+    val isSword: Boolean = false
 ) {
     private var cooldownTimer: Float = 0f
 
@@ -55,5 +57,6 @@ enum class WeaponType {
     SHOTGUN,
     SMG,
     FLAMETHROWER,
-    MELEE
+    MELEE,
+    SWORD
 }

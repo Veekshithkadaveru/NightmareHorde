@@ -83,6 +83,12 @@ class WeaponSystem(
         const val WHIP_HITBOX_RADIUS = 14f    // Each segment's collision radius
         const val WHIP_BLADE_LENGTH = 28f     // Base length of each blade segment (oval width)
         const val WHIP_BLADE_THICKNESS = 6f   // Thickness at widest point (oval height)
+
+        // Broad sword thrust config — forward cleave, not an arc
+        const val SWORD_SEGMENT_COUNT = 4      // Segments stacked along the thrust line
+        const val SWORD_HITBOX_RADIUS = 20f    // Large hitbox per segment — wide blade
+        const val SWORD_BLADE_WIDTH = 40f      // Width of each blade segment (perpendicular to thrust)
+        const val SWORD_BLADE_DEPTH = 12f      // Depth of each segment (along thrust direction)
     }
 
     private fun fireWeapon(
@@ -104,6 +110,7 @@ class WeaponSystem(
 
         when {
             weapon.isFlame -> fireFlame(owner, weapon, transform, direction)
+            weapon.isSword -> fireSwordSlash(owner, weapon, transform, direction)
             weapon.isMelee -> fireWhipSweep(owner, weapon, transform, direction)
             else -> fireStandard(owner, weapon, transform, direction)
         }
@@ -243,6 +250,72 @@ class WeaponSystem(
                 particleWidth = bladeLen,   // Elongated oval — blade segment
                 particleHeight = bladeThick,
                 isMelee = true              // Marks as melee for boss retaliation
+            )
+            gameLoop.addEntity(projectile)
+        }
+    }
+
+    /**
+     * Broad sword thrust: a straight-line forward cleave in the facing direction.
+     * Segments are stacked along the thrust axis (close → far), creating a
+     * rectangular blade that extends outward from the knight — like a heavy
+     * overhead chop or forward stab. Completely distinct from the whip's arc.
+     *
+     * Visual: golden blade segments aligned perpendicular to the thrust direction,
+     * tapering from wide (near player) to pointed (at tip).
+     */
+    private fun fireSwordSlash(
+        owner: Entity,
+        weapon: Weapon,
+        transform: TransformComponent,
+        direction: Vector2
+    ) {
+        val stats = owner.getComponent(StatsComponent::class)
+        val areaMult = stats?.areaMultiplier ?: 1f
+        val reachDistance = weapon.range * areaMult
+
+        // Spacing between segments along the thrust line
+        val segmentSpacing = reachDistance / SWORD_SEGMENT_COUNT
+
+        for (i in 0 until SWORD_SEGMENT_COUNT) {
+            // Normalized position along the blade [0..1], 0 = near player, 1 = tip
+            val t = (i + 1).toFloat() / SWORD_SEGMENT_COUNT
+
+            // Distance from player — segments evenly spaced along thrust direction
+            val segDistance = segmentSpacing * (i + 1)
+
+            // Taper: widest at base (near player), narrowing to a point at the tip
+            val taper = 1f - (t * 0.5f)  // 1.0 at base → 0.5 at tip
+            val bladeWidth = SWORD_BLADE_WIDTH * taper
+            val bladeDepth = SWORD_BLADE_DEPTH * (0.8f + 0.2f * taper)
+
+            // Orient each segment perpendicular to the thrust direction
+            // so the wide side faces sideways (like a flat blade edge)
+            val bladeAngle = direction.angle()
+
+            // Color gradient: bright golden core near player, darker orange at tip
+            val color = Color(
+                red = 1.0f,
+                green = 0.85f - 0.25f * t,   // Fades from bright gold to deep orange
+                blue = 0.3f - 0.2f * t,       // Fades from warm to dark
+                alpha = 1.0f
+            )
+
+            val projectile = ProjectileEntity(
+                x = transform.x + direction.x * segDistance,
+                y = transform.y + direction.y * segDistance,
+                rotation = bladeAngle,
+                speed = 0f,
+                damage = weapon.damage,
+                ownerId = owner.id,
+                lifeTime = 0.3f,
+                penetrating = true,
+                colliderRadius = SWORD_HITBOX_RADIUS,
+                particleColor = color,
+                particleSize = 12f,
+                particleWidth = bladeWidth,
+                particleHeight = bladeDepth,
+                isMelee = true
             )
             gameLoop.addEntity(projectile)
         }
