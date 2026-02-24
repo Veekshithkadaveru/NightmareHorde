@@ -20,6 +20,9 @@ class Camera @Inject constructor() {
     
     /** Zoom level (1.0 = normal, 2.0 = 2x zoom) */
     var zoom: Float = 1f
+        set(value) {
+            field = value.coerceIn(0.25f, 5.0f)
+        }
     
     /** Screen dimensions (set by GameSurface) */
     var screenWidth: Float = 0f

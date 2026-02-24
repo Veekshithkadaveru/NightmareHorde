@@ -2,11 +2,13 @@ package app.krafted.nightmarehorde.ui.navigation
 
 import app.krafted.nightmarehorde.game.data.CharacterClass
 import app.krafted.nightmarehorde.game.data.CharacterType
+import app.krafted.nightmarehorde.game.data.MapType
 
 sealed class Screen {
     data object MainMenu : Screen()
     data object CharacterSelect : Screen()
-    data class Game(val characterClass: CharacterClass) : Screen()
+    data class MapSelect(val characterClass: CharacterClass) : Screen()
+    data class Game(val characterClass: CharacterClass, val mapType: MapType) : Screen()
     data class GameOver(val stats: GameOverStats) : Screen()
 }
 

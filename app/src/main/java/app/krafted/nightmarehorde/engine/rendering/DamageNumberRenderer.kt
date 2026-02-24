@@ -59,7 +59,7 @@ class DamageNumberRenderer @Inject constructor() {
                     topLeft = Offset(screenX, screenY),
                     style = textStyle.copy(
                         color = Color.White.copy(alpha = (1f - (popup.timeAlive / popup.lifeTime)).coerceIn(0f, 1f)),
-                        fontSize = (16 * camera.zoom).sp // Scale text with zoom? Maybe not, usually UI stays constant size or scales slightly
+                        fontSize = (16f * camera.zoom.coerceAtLeast(0.5f)).sp // Clamp zoom to avoid invisible/negative constraint crash
                     )
                 )
             }

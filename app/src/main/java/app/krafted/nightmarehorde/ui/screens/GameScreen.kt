@@ -42,6 +42,7 @@ import app.krafted.nightmarehorde.engine.input.detectGameGestures
 import app.krafted.nightmarehorde.engine.rendering.GameSurface
 import app.krafted.nightmarehorde.game.data.CharacterClass
 import app.krafted.nightmarehorde.game.data.CharacterType
+import app.krafted.nightmarehorde.game.data.MapType
 import app.krafted.nightmarehorde.game.systems.DayNightCycle
 import app.krafted.nightmarehorde.game.weapons.WeaponType
 import app.krafted.nightmarehorde.ui.components.BossHealthBar
@@ -53,6 +54,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun GameScreen(
     characterClass: CharacterClass = CharacterClass.ROOKIE,
+    mapType: MapType = MapType.SUBURBS,
     viewModel: GameViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -103,7 +105,7 @@ fun GameScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.startGame(characterClass)
+        viewModel.startGame(characterClass, mapType)
     }
 
     LaunchedEffect(Unit) {
@@ -132,7 +134,7 @@ fun GameScreen(
             damageNumberRenderer = viewModel.damageNumberRenderer,
             particleRenderer = viewModel.particleRenderer,
             droneRenderer = viewModel.droneRenderer,
-            backgroundColor = Color(0xFF1a1a2e),
+            backgroundColor = Color(mapType.backgroundColor),
             modifier = Modifier.detectGameGestures(gestureHandler, scope)
         )
 

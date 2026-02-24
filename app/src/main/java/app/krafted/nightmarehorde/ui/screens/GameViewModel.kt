@@ -28,6 +28,8 @@ import app.krafted.nightmarehorde.game.data.AssetManager
 import app.krafted.nightmarehorde.game.data.CharacterClass
 import app.krafted.nightmarehorde.game.data.CharacterType
 import app.krafted.nightmarehorde.game.data.DroneType
+import app.krafted.nightmarehorde.game.data.MapType
+import app.krafted.nightmarehorde.game.data.MapUnlockManager
 import app.krafted.nightmarehorde.game.data.ObstacleType
 import app.krafted.nightmarehorde.game.data.BossType
 import app.krafted.nightmarehorde.game.data.EvolutionRegistry
@@ -37,6 +39,8 @@ import app.krafted.nightmarehorde.game.data.UpgradeChoice
 import app.krafted.nightmarehorde.game.data.UpgradeContext
 import app.krafted.nightmarehorde.game.data.UpgradePool
 import app.krafted.nightmarehorde.game.data.ZombieType
+import app.krafted.nightmarehorde.game.maps.MapFeatureSystem
+import app.krafted.nightmarehorde.game.maps.MapSystem
 import app.krafted.nightmarehorde.game.entities.AmmoPickup
 import app.krafted.nightmarehorde.game.entities.BossEntity
 import app.krafted.nightmarehorde.game.entities.HealthPickup
@@ -176,6 +180,8 @@ class GameViewModel @Inject constructor(
     private lateinit var lootDropSystem: LootDropSystem
     private lateinit var waveSpawner: WaveSpawner
     private var dayNightCycle: DayNightCycle? = null
+    private var mapSystem: MapSystem? = null
+    private var mapFeatureSystem: MapFeatureSystem? = null
 
     /** Reference to spawning coroutine for clean cancellation. */
     private var spawnJob: Job? = null
@@ -200,7 +206,10 @@ class GameViewModel @Inject constructor(
 
     // ─── Game Lifecycle ───────────────────────────────────────────────────
 
-    fun startGame(characterClass: CharacterClass = CharacterClass.ROOKIE) {
+    fun startGame(
+        characterClass: CharacterClass = CharacterClass.ROOKIE,
+        mapType: MapType = MapType.SUBURBS
+    ) {
         val characterType = characterClass.characterType
         if (isGameRunning) return
         isGameRunning = true
@@ -211,7 +220,7 @@ class GameViewModel @Inject constructor(
         assetManager.preload(
             characterType.idleTextureKey,
             characterType.runTextureKey,
-            "background_space",
+            mapType.backgroundTextureKey,
             "projectile_standard",
             *ZombieType.entries.map { it.assetName }.toTypedArray(),
             *ObstacleType.entries.map { it.textureKey }.toTypedArray(),
@@ -256,7 +265,22 @@ class GameViewModel @Inject constructor(
                 if (entity != null) gameLoop.removeEntity(entity)
             }
         }
+
+        // MapSystem (priority 3): decorates spawn area with map-specific static obstacles
+        val ms = MapSystem(mapType).apply {
+            onSpawnEntity = { entity -> gameLoop.addEntity(entity) }
+        }
+        mapSystem = ms
+        gameLoop.addSystem(ms)
+
         gameLoop.addSystem(obstacleSpawnSystem)
+
+        // MapFeatureSystem (priority 8): periodic ammo/health spawns, laser trap damage
+        val mfs = MapFeatureSystem(mapType).apply {
+            onSpawnEntity = { entity -> gameLoop.addEntity(entity) }
+        }
+        mapFeatureSystem = mfs
+        gameLoop.addSystem(mfs)
 
         val playerSystem = PlayerSystem(inputManager, camera).apply {
             onPlayerDeath = {
@@ -332,16 +356,22 @@ class GameViewModel @Inject constructor(
         // --- Create Entities ---
 
         val background = Entity().apply {
-            addComponent(TransformComponent(x = 0f, y = 0f))
+            addComponent(TransformComponent(x = 0f, y = 0f, scale = 4.5f))
             addComponent(SpriteComponent(
-                textureKey = "background_space",
+                textureKey = mapType.backgroundTextureKey,
                 layer = 0,
+                width = 0f,
+                height = 0f,
                 fillViewport = true
             ))
         }
         gameLoop.addEntity(background)
 
-        playerEntity = PlayerEntity.create(characterClass = characterClass, spawnX = 0f, spawnY = 0f).apply {
+        playerEntity = PlayerEntity.create(
+            characterClass = characterClass,
+            spawnX = mapType.spawnX,
+            spawnY = mapType.spawnY
+        ).apply {
             addComponent(XPComponent())
         }
         gameLoop.addEntity(playerEntity!!)
@@ -483,7 +513,10 @@ class GameViewModel @Inject constructor(
         }
     }
 
-    fun stopGame() {
+    fun stopGame(recordStats: Boolean = true) {
+        if (recordStats) {
+            MapUnlockManager.recordRunEnd(bossesDefeated = bossesDefeated)
+        }
         isGameRunning = false
         spawnJob?.cancel()
         hudObserverJob?.cancel()
@@ -507,6 +540,10 @@ class GameViewModel @Inject constructor(
         _levelUpState.value = LevelUpState()
         upgradePool.reset()
         activatedSynergies.clear()
+        mapSystem?.reset()
+        mapSystem = null
+        mapFeatureSystem?.reset()
+        mapFeatureSystem = null
     }
 
     // ─── Weapon Switching (delegated) ─────────────────────────────────────
