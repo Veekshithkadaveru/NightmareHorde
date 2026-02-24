@@ -52,8 +52,10 @@ class WaveSpawner(
     // ─── Authoritative Timer ──────────────────────────────────────────────
 
     private var gameStartNanos: Long = 0L
+    private var totalPausedNanos: Long = 0L
+    private var pauseStartNanos: Long = 0L
 
-    /** True elapsed game time in seconds, based on wall clock. */
+    /** True elapsed game time in seconds, excluding paused time. */
     var elapsedGameTime: Float = 0f
         private set
 
@@ -63,13 +65,30 @@ class WaveSpawner(
 
     fun resetTimer() {
         gameStartNanos = System.nanoTime()
+        totalPausedNanos = 0L
+        pauseStartNanos = 0L
         elapsedGameTime = 0f
         cachedZombieCount = 0
     }
 
+    fun onPause() {
+        if (pauseStartNanos == 0L) {
+            pauseStartNanos = System.nanoTime()
+        }
+    }
+
+    fun onResume() {
+        if (pauseStartNanos != 0L) {
+            totalPausedNanos += System.nanoTime() - pauseStartNanos
+            pauseStartNanos = 0L
+        }
+    }
+
     /** Call once per spawn tick to update the authoritative timer. */
     fun tick() {
-        elapsedGameTime = (System.nanoTime() - gameStartNanos) / 1_000_000_000f
+        val now = System.nanoTime()
+        val activePause = if (pauseStartNanos != 0L) now - pauseStartNanos else 0L
+        elapsedGameTime = (now - gameStartNanos - totalPausedNanos - activePause) / 1_000_000_000f
     }
 
     // ─── Scaling Functions ────────────────────────────────────────────────

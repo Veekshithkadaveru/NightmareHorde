@@ -187,6 +187,8 @@ class GameViewModel @Inject constructor(
     private var spawnJob: Job? = null
     /** Reference to HUD observer coroutine for clean cancellation. */
     private var hudObserverJob: Job? = null
+    /** Reference to double-tap observer coroutine for clean cancellation. */
+    private var doubleTapJob: Job? = null
 
     // ─── Boss State ────────────────────────────────────────────────────
     private var activeBossEntity: Entity? = null
@@ -389,6 +391,12 @@ class GameViewModel @Inject constructor(
 
                 if (!isGameRunning) break
 
+                // Hibernate while the game is paused (e.g. level-up screen)
+                while (gameLoop.isPaused && isGameRunning) {
+                    kotlinx.coroutines.delay(50)
+                }
+                if (!isGameRunning) break
+
                 // Update authoritative timer
                 waveSpawner.tick()
                 _gameTime.value = waveSpawner.elapsedGameTime
@@ -464,6 +472,7 @@ class GameViewModel @Inject constructor(
                         if (xpComp.levelUpPending && !_levelUpState.value.isShowing) {
                             // Pause game and show level-up UI
                             gameLoop.pause()
+                            waveSpawner.onPause()
                             val stats = player.getComponent(StatsComponent::class)
                             val inventory = player.getComponent(WeaponInventoryComponent::class)
                             val options = upgradePool.getRandomUpgrades(
@@ -506,7 +515,7 @@ class GameViewModel @Inject constructor(
         }
 
         // Double-tap events (for turret menu in Phase D)
-        viewModelScope.launch {
+        doubleTapJob = viewModelScope.launch {
             inputManager.doubleTapEvents.collect { position ->
                 Log.d("GameViewModel", "Double-tap for turret menu at: $position")
             }
@@ -520,8 +529,10 @@ class GameViewModel @Inject constructor(
         isGameRunning = false
         spawnJob?.cancel()
         hudObserverJob?.cancel()
+        doubleTapJob?.cancel()
         spawnJob = null
         hudObserverJob = null
+        doubleTapJob = null
         gameLoop.stop()
         gameLoop.clear()
         inputManager.reset()
@@ -544,6 +555,7 @@ class GameViewModel @Inject constructor(
         mapSystem = null
         mapFeatureSystem?.reset()
         mapFeatureSystem = null
+        assetManager.clearCache()
     }
 
     // ─── Weapon Switching (delegated) ─────────────────────────────────────
@@ -620,6 +632,7 @@ class GameViewModel @Inject constructor(
 
         // Hide level-up UI and resume the game
         _levelUpState.value = LevelUpState()
+        waveSpawner.onResume()
         gameLoop.resume()
     }
 

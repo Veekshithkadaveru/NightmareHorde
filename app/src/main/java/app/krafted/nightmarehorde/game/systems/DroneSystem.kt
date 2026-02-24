@@ -16,6 +16,7 @@ import app.krafted.nightmarehorde.game.data.DroneType
 import app.krafted.nightmarehorde.engine.core.components.ColliderComponent
 import app.krafted.nightmarehorde.engine.core.components.ParticleComponent
 import app.krafted.nightmarehorde.engine.physics.Collider
+import app.krafted.nightmarehorde.game.entities.DamagePopupEntity
 import app.krafted.nightmarehorde.game.entities.HitEffectEntity
 import app.krafted.nightmarehorde.game.entities.ProjectileEntity
 import kotlin.math.cos
@@ -31,6 +32,8 @@ class DroneSystem(
 
     companion object {
         const val BURST_FIRE_RATE = 0.08f
+        const val INFERNO_BURN_MULTIPLIER = 1.5f
+        const val ARC_CHAIN_ESCALATION = 0.25f
     }
 
     // Reusable buffers to avoid per-frame allocations
@@ -333,6 +336,9 @@ class DroneSystem(
         val effectiveRangeSquared = effectiveRange * effectiveRange
         val maxTargets = drone.droneType.maxAoeTargets
 
+        // Inferno special: 1.5x burn damage that bypasses armor
+        val burnDamage = (damage * INFERNO_BURN_MULTIPLIER).toInt().coerceAtLeast(1)
+
         var hitCount = 0
         for (entity in targetBuffer) {
             if (hitCount >= maxTargets) break
@@ -343,13 +349,16 @@ class DroneSystem(
 
             val distSq = transform.distanceSquaredTo(targetTransform)
             if (distSq <= effectiveRangeSquared) {
-                // Skip targets hidden behind an obstacle
-                if (isBlockedByObstacle(transform.x, transform.y, targetTransform.x, targetTransform.y)) continue
-
-                health.takeDamage(damage.toInt())
+                val dealt = health.takeDamage(burnDamage, 0)
                 hitCount++
 
-                // Burn VFX
+                if (dealt > 0) {
+                    gameLoop.addEntity(DamagePopupEntity(
+                        x = targetTransform.x,
+                        y = targetTransform.y - 30f,
+                        damage = dealt
+                    ))
+                }
                 spawnBurnEffect(targetTransform.x, targetTransform.y)
 
                 if (!health.isAlive) {
@@ -367,10 +376,6 @@ class DroneSystem(
         damage: Float,
         droneEntityId: Long
     ) {
-        // Skip first target if it's behind an obstacle from the drone
-        val firstTargetTransform = firstTarget.getComponent(TransformComponent::class) ?: return
-        if (isBlockedByObstacle(droneTransform.x, droneTransform.y, firstTargetTransform.x, firstTargetTransform.y)) return
-
         val maxChain = drone.droneType.chainTargetsAtLevel(drone.level)
         val hitIds = mutableSetOf<Long>()
         var currentTarget = firstTarget
@@ -383,14 +388,30 @@ class DroneSystem(
             val health = currentTarget.getComponent(HealthComponent::class) ?: break
             if (!health.isAlive) break
 
-            // Skip target if it's behind an obstacle from the previous chain link
-            if (isBlockedByObstacle(prevTransform.x, prevTransform.y, targetTransform.x, targetTransform.y)) break
-
-            health.takeDamage(damage.toInt())
+            // Arc special: escalating chain damage (+25% per link)
+            val chainMultiplier = 1f + (chainCount * ARC_CHAIN_ESCALATION)
+            val chainDamage = (damage * chainMultiplier).toInt().coerceAtLeast(1)
+            val dealt = health.takeDamage(chainDamage, 0)
             hitIds.add(currentTarget.id)
             chainCount++
 
-            // Arc VFX between chain links
+            if (dealt > 0) {
+                gameLoop.addEntity(DamagePopupEntity(
+                    x = targetTransform.x,
+                    y = targetTransform.y - 30f,
+                    damage = dealt
+                ))
+                HitEffectEntity.burst(
+                    x = targetTransform.x,
+                    y = targetTransform.y,
+                    count = 4,
+                    baseColor = Color(0xFF8844FF),
+                    speed = 100f,
+                    lifeTime = 0.3f,
+                    size = 8f
+                ).forEach { gameLoop.addEntity(it) }
+            }
+
             spawnArcEffect(prevTransform.x, prevTransform.y, targetTransform.x, targetTransform.y)
 
             if (!health.isAlive) {
@@ -400,7 +421,6 @@ class DroneSystem(
 
             prevTransform = targetTransform
 
-            // Find next chain target (also respects obstacle LOS in next iteration)
             val nextTarget = findNearestTargetExcluding(targetTransform, drone.droneType.range, hitIds)
             if (nextTarget != null) {
                 currentTarget = nextTarget

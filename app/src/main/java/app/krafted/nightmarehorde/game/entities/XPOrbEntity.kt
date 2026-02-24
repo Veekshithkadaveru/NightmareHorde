@@ -24,7 +24,7 @@ object XPOrbEntity {
      */
     fun create(x: Float, y: Float, xpValue: Int = 1): Entity {
         return Entity().apply {
-            addComponent(TransformComponent(x = x, y = y, scale = 0.6f))
+            addComponent(TransformComponent(x = x, y = y, scale = 0.83f))
             addComponent(VelocityComponent())
             addComponent(ColliderComponent.circle(
                 radius = 12f,

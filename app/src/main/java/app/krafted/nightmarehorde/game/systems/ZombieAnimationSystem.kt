@@ -47,11 +47,21 @@ class ZombieAnimationSystem @Inject constructor() : GameSystem(priority = 16) {
             controller.update(deltaTime)
             sprite.currentFrame = controller.currentFrame
 
-            // Flip sprite horizontally based on movement direction
-            if (velocity.vx < -0.1f) {
-                sprite.flipX = true
-            } else if (velocity.vx > 0.1f) {
-                sprite.flipX = false
+            // Flip sprite horizontally based on movement direction.
+            // Types with defaultFlipX have their sprite drawn facing the
+            // opposite direction, so the flip logic is inverted for them.
+            if (type.defaultFlipX) {
+                if (velocity.vx > 0.1f) {
+                    sprite.flipX = true
+                } else if (velocity.vx < -0.1f) {
+                    sprite.flipX = false
+                }
+            } else {
+                if (velocity.vx < -0.1f) {
+                    sprite.flipX = true
+                } else if (velocity.vx > 0.1f) {
+                    sprite.flipX = false
+                }
             }
         }
 
