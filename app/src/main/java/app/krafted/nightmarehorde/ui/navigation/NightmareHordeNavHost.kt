@@ -9,6 +9,7 @@ import app.krafted.nightmarehorde.game.data.CharacterClass
 import app.krafted.nightmarehorde.ui.screens.CharacterSelectScreen
 import app.krafted.nightmarehorde.ui.screens.GameScreen
 import app.krafted.nightmarehorde.ui.screens.MainMenuScreen
+import app.krafted.nightmarehorde.ui.screens.MapSelectScreen
 
 @Composable
 fun NightmareHordeNavHost() {
@@ -21,13 +22,22 @@ fun NightmareHordeNavHost() {
 
         is Screen.CharacterSelect -> CharacterSelectScreen(
             onCharacterSelected = { characterClass ->
-                currentScreen = Screen.Game(characterClass)
+                currentScreen = Screen.MapSelect(characterClass)
             },
             onBack = { currentScreen = Screen.MainMenu }
         )
 
+        is Screen.MapSelect -> MapSelectScreen(
+            characterClass = screen.characterClass,
+            onMapSelected = { mapType ->
+                currentScreen = Screen.Game(screen.characterClass, mapType)
+            },
+            onBack = { currentScreen = Screen.CharacterSelect }
+        )
+
         is Screen.Game -> GameScreen(
-            characterClass = screen.characterClass
+            characterClass = screen.characterClass,
+            mapType = screen.mapType
         )
 
         else -> {}

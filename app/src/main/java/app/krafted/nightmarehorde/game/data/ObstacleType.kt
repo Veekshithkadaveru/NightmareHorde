@@ -26,9 +26,9 @@ enum class ObstacleType(
         textureKey = "obstacle_rock_small",
         spriteWidth = 32f,
         spriteHeight = 32f,
-        colliderHalfWidth = 16f,
-        colliderHalfHeight = 16f,
-        scale = 1.2f,
+        colliderHalfWidth = 10f,
+        colliderHalfHeight = 10f,
+        scale = 0.7f,
         spawnWeight = 15
     ),
     TREE(
@@ -53,9 +53,9 @@ enum class ObstacleType(
         textureKey = "obstacle_barrel",
         spriteWidth = 16f,
         spriteHeight = 16f,
-        colliderHalfWidth = 16f,
-        colliderHalfHeight = 16f,
-        scale = 1.5f,
+        colliderHalfWidth = 10f,
+        colliderHalfHeight = 10f,
+        scale = 1.0f,
         spawnWeight = 10
     );
 

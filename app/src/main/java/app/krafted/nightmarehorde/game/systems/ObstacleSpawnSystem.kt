@@ -57,6 +57,15 @@ class ObstacleSpawnSystem : GameSystem(priority = 5) {
     var onSpawnEntity: ((Entity) -> Unit)? = null
     var onDespawnEntity: ((Long) -> Unit)? = null
 
+    /**
+     * Optional chunk-coordinate bounds to restrict procedural spawning within a finite map.
+     * Set by MapSystem when a bounded map is active. Defaults to unbounded (infinite world).
+     */
+    var chunkBoundsMinX: Int = Int.MIN_VALUE
+    var chunkBoundsMinY: Int = Int.MIN_VALUE
+    var chunkBoundsMaxX: Int = Int.MAX_VALUE
+    var chunkBoundsMaxY: Int = Int.MAX_VALUE
+
     private var frameCounter = 0
 
     override fun update(deltaTime: Float, entities: List<Entity>) {
@@ -71,9 +80,13 @@ class ObstacleSpawnSystem : GameSystem(priority = 5) {
         val playerChunkX = worldToChunk(playerTransform.x)
         val playerChunkY = worldToChunk(playerTransform.y)
 
-        // Spawn nearby chunks
-        for (cx in (playerChunkX - ACTIVE_RADIUS)..(playerChunkX + ACTIVE_RADIUS)) {
-            for (cy in (playerChunkY - ACTIVE_RADIUS)..(playerChunkY + ACTIVE_RADIUS)) {
+        // Spawn nearby chunks (clamped to optional map bounds)
+        val spawnMinX = maxOf(playerChunkX - ACTIVE_RADIUS, chunkBoundsMinX)
+        val spawnMaxX = minOf(playerChunkX + ACTIVE_RADIUS, chunkBoundsMaxX)
+        val spawnMinY = maxOf(playerChunkY - ACTIVE_RADIUS, chunkBoundsMinY)
+        val spawnMaxY = minOf(playerChunkY + ACTIVE_RADIUS, chunkBoundsMaxY)
+        for (cx in spawnMinX..spawnMaxX) {
+            for (cy in spawnMinY..spawnMaxY) {
                 val chunkKey = packChunkKey(cx, cy)
                 if (chunkKey !in spawnedChunks) {
                     spawnChunk(cx, cy, chunkKey)
@@ -200,6 +213,10 @@ class ObstacleSpawnSystem : GameSystem(priority = 5) {
         chunkEntities.clear()
         spawnedChunks.clear()
         frameCounter = 0
+        chunkBoundsMinX = Int.MIN_VALUE
+        chunkBoundsMinY = Int.MIN_VALUE
+        chunkBoundsMaxX = Int.MAX_VALUE
+        chunkBoundsMaxY = Int.MAX_VALUE
     }
 
     private fun worldToChunk(worldCoord: Float): Int {

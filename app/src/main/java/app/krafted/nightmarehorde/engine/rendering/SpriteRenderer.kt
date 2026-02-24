@@ -76,7 +76,7 @@ class SpriteRenderer @Inject constructor(
         
         // FillViewport sprites use special tiling logic
         if (data.sprite.fillViewport) {
-            renderTilingBackground(drawScope, bitmap, camera, data.sprite.alpha)
+            renderTilingBackground(drawScope, bitmap, camera, data)
             return
         }
         
@@ -166,37 +166,51 @@ class SpriteRenderer @Inject constructor(
         drawScope: DrawScope,
         bitmap: androidx.compose.ui.graphics.ImageBitmap,
         camera: Camera,
-        alpha: Float
+        data: RenderData
     ) {
-        val tileW = bitmap.width.toFloat()
-        val tileH = bitmap.height.toFloat()
+        val scale = if (data.transform.scale > 0f) data.transform.scale else 1f
+        val overallScale = scale * camera.zoom
         
-        if (tileW <= 0 || tileH <= 0) return
+        if (overallScale <= 0f) return
+        
+        // Exact pixel size on screen BEFORE any rounding
+        val trueTileW = bitmap.width.toFloat() * overallScale
+        val trueTileH = bitmap.height.toFloat() * overallScale
+        
+        // By rounding up the size slightly (adding 1 pixel), we ensure no gaps between tiles
+        // when DrawScope internally snaps Rects to pixel grids during rasterization.
+        val drawW = kotlin.math.ceil(trueTileW).toInt() + 1
+        val drawH = kotlin.math.ceil(trueTileH).toInt() + 1
         
         val screenW = camera.screenWidth
         val screenH = camera.screenHeight
         
-        // Calculate the offset so tiles scroll opposite to camera movement
-        // Negate camera position: when camera moves RIGHT, tiles scroll LEFT
-        val rawX = (-camera.x * camera.zoom) % tileW
-        val rawY = (-camera.y * camera.zoom) % tileH
-        val offsetX = if (rawX > 0) rawX - tileW else if (rawX < -tileW + 1) rawX + tileW else rawX
-        val offsetY = if (rawY > 0) rawY - tileH else if (rawY < -tileH + 1) rawY + tileH else rawY
+        // Camera position relative to the center of the screen
+        val originX = (screenW / 2f) - (camera.x * camera.zoom)
+        val originY = (screenH / 2f) - (camera.y * camera.zoom)
         
-        // Draw enough tiles to cover the screen
-        var x = offsetX
+        // Modulo against true float widths so scrolling remains perfectly smooth
+        val rawOffsetX = originX % trueTileW
+        val rawOffsetY = originY % trueTileH
+        
+        val startX = if (rawOffsetX > 0) rawOffsetX - trueTileW else rawOffsetX
+        val startY = if (rawOffsetY > 0) rawOffsetY - trueTileH else rawOffsetY
+        
+        var x = startX
         while (x < screenW) {
-            var y = offsetY
+            var y = startY
             while (y < screenH) {
+                // Notice we cast x, y to Int to snap to integer pixels, 
+                // but draw size is artificially 1px larger to cover any rounding gap exactly
                 drawScope.drawImage(
                     image = bitmap,
                     dstOffset = IntOffset(x.toInt(), y.toInt()),
-                    dstSize = IntSize(tileW.toInt(), tileH.toInt()),
-                    alpha = alpha
+                    dstSize = IntSize(drawW, drawH),
+                    alpha = data.sprite.alpha
                 )
-                y += tileH
+                y += trueTileH
             }
-            x += tileW
+            x += trueTileW
         }
     }
     
