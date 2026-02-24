@@ -18,7 +18,8 @@ enum class ZombieType(
     val frameHeight: Int,
     val frameCount: Int,
     val animationFps: Float = 10f,
-    val scale: Float = 1f
+    val scale: Float = 1f,
+    val defaultFlipX: Boolean = false
 ) {
     // Player reference: 32x32 @ scale 3.0 = 96x96 effective pixels
     // Regular zombies: 60-90% of player size. Brute: ~130%.
@@ -78,7 +79,8 @@ enum class ZombieType(
         frameHeight = 38,
         frameCount = 10,
         animationFps = 10f,
-        scale = 1.8f  // 76x68 — smaller ranged enemy
+        scale = 1.8f,  // 76x68 — smaller ranged enemy
+        defaultFlipX = true
     ),
     BRUTE(
         assetName = "zombie_brute_run",

@@ -58,19 +58,24 @@ class LootDropSystem(
         )
 
         // ─── RNG drops (ammo + health) ──────────────────────────
-        // "Pity System": Drop chance scales with missing health.
-        // - Full HP: 2% base chance (don't clutter screen when safe)
-        // - Low HP: Up to ~25% chance (help player recover)
-        val baseChance = 0.02f
-        val healthMissingPercent = 1f - (playerHealthComp?.healthPercent ?: 1f)
-        val pityBonus = healthMissingPercent * 0.25f
-        val healthDropChance = baseChance + pityBonus
-
+        // Health orbs are ONLY available after 90 seconds of game time.
+        // After 90s the drop chance scales with missing HP so critically-low
+        // players (< 30% HP) get substantially more health orbs.
+        val healthPercent = playerHealthComp?.healthPercent ?: 1f
         val xpMultiplier = xpReward.toFloat().coerceIn(1f, 10f) / 5f
-        
-        val effectiveHealthDrop = healthDropChance * xpMultiplier
-        val effectiveAmmoDrop = AMMO_DROP_CHANCE * xpMultiplier
 
+        val healthDropChance: Float
+        if (elapsedGameTime > 90f) {
+            val baseChance = 0.02f
+            val healthMissingPercent = 1f - healthPercent
+            val pityBonus = healthMissingPercent * 0.25f
+            val criticalBonus = if (healthPercent < 0.3f) 0.20f else 0f
+            healthDropChance = (baseChance + pityBonus + criticalBonus) * xpMultiplier
+        } else {
+            healthDropChance = 0f
+        }
+
+        val effectiveAmmoDrop = AMMO_DROP_CHANCE * xpMultiplier
         val roll = rng.nextFloat()
 
         val offsetX = (rng.nextFloat() - 0.5f) * 20f
@@ -79,10 +84,10 @@ class LootDropSystem(
         val dropY = transform.y + offsetY
 
         when {
-            roll < effectiveHealthDrop -> {
+            roll < healthDropChance -> {
                 gameLoop.addEntity(HealthPickup.create(x = dropX, y = dropY, healAmount = 10))
             }
-            roll < effectiveHealthDrop + effectiveAmmoDrop -> {
+            roll < healthDropChance + effectiveAmmoDrop -> {
                 val droppableTypes = unlockedWeaponTypes.filter { it in ammoDropWeaponTypes }
                 if (droppableTypes.isNotEmpty()) {
                     val weaponType = droppableTypes[rng.nextInt(droppableTypes.size)]
@@ -90,10 +95,7 @@ class LootDropSystem(
                     gameLoop.addEntity(
                         AmmoPickup.create(x = dropX, y = dropY, amount = amount, weaponType = weaponType)
                     )
-                } else {
-                    // Fallback to health if no ammo types needed, but check roll against pure health chance logic?
-                    // actually if we land in ammo roll but can't drop ammo, generic behavior is usually nothing or health.
-                    // Let's drop health to be generous since we rolled a "drop" event.
+                } else if (elapsedGameTime > 90f) {
                     gameLoop.addEntity(HealthPickup.create(x = dropX, y = dropY, healAmount = 10))
                 }
             }
