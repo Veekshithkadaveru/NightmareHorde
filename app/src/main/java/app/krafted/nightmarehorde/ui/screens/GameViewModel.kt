@@ -230,6 +230,7 @@ class GameViewModel @Inject constructor(
             "pickup_orb_yellow",
             "pickup_orb_red",
             "pickup_orb_blue",
+            "laser_grid_vfx",
             // Boss assets
             "boss_idle",
             "boss_hive_queen",
@@ -260,7 +261,7 @@ class GameViewModel @Inject constructor(
 
         // --- Register Systems (order by priority) ---
 
-        val obstacleSpawnSystem = ObstacleSpawnSystem().apply {
+        val obstacleSpawnSystem = ObstacleSpawnSystem(mapType).apply {
             onSpawnEntity = { entity -> gameLoop.addEntity(entity) }
             onDespawnEntity = { entityId ->
                 val entity = gameLoop.getEntitiesSnapshot().find { it.id == entityId }
@@ -280,6 +281,11 @@ class GameViewModel @Inject constructor(
         // MapFeatureSystem (priority 8): periodic ammo/health spawns, laser trap damage
         val mfs = MapFeatureSystem(mapType).apply {
             onSpawnEntity = { entity -> gameLoop.addEntity(entity) }
+            onDespawnEntity = { entityId ->
+                val entity = gameLoop.getEntitiesSnapshot().find { it.id == entityId }
+                if (entity != null) gameLoop.removeEntity(entity)
+            }
+            onEnemyDeath = { deadEntity -> handleEnemyDeath(deadEntity) }
         }
         mapFeatureSystem = mfs
         gameLoop.addSystem(mfs)

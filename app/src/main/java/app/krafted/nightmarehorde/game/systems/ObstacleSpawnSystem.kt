@@ -5,6 +5,7 @@ import app.krafted.nightmarehorde.engine.core.GameSystem
 import app.krafted.nightmarehorde.engine.core.components.ObstacleTagComponent
 import app.krafted.nightmarehorde.engine.core.components.PlayerTagComponent
 import app.krafted.nightmarehorde.engine.core.components.TransformComponent
+import app.krafted.nightmarehorde.game.data.MapType
 import app.krafted.nightmarehorde.game.data.ObstacleType
 import app.krafted.nightmarehorde.game.entities.ObstacleEntity
 import kotlin.random.Random
@@ -18,7 +19,9 @@ import kotlin.random.Random
  *
  * Uses seeded random per chunk for deterministic placement.
  */
-class ObstacleSpawnSystem : GameSystem(priority = 5) {
+class ObstacleSpawnSystem(
+    private val mapType: MapType
+) : GameSystem(priority = 5) {
 
     companion object {
         /** Size of each chunk in world units */
@@ -146,7 +149,7 @@ class ObstacleSpawnSystem : GameSystem(priority = 5) {
             formationOrigins.add(originX to originY)
 
             // Pick which type to build this formation from (uniform within a formation)
-            val type = ObstacleType.weightedRandom(rng.nextInt(ObstacleType.totalWeight))
+            val type = ObstacleType.weightedRandomForMap(mapType, rng)
 
             // Decide formation shape
             val shape = rng.nextInt(3) // 0 = L-shape, 1 = reverse-L, 2 = straight wall

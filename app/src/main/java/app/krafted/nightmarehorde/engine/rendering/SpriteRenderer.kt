@@ -53,7 +53,7 @@ class SpriteRenderer @Inject constructor(
                     RenderData(entity, transform, sprite)
                 } else null
             }
-            .sortedBy { it.sprite.layer }
+            .sortedWith(compareBy<RenderData> { it.sprite.layer }.thenBy { it.transform.y })
         
         // Get visible bounds for culling
         val visibleBounds = camera.getVisibleBounds()
