@@ -48,29 +48,25 @@ class MapFeatureSystem(
     }
 
     var onSpawnEntity: ((Entity) -> Unit)? = null
+    var onDespawnEntity: ((Long) -> Unit)? = null
+    var onEnemyDeath: ((Entity) -> Unit)? = null
 
-    private var initialized = false
     private var ammoTimer   = 0f
     private var healthTimer = 0f
     private val rng = Random(mapType.ordinal.toLong() * 999L + 31L)
 
-    // Laser trap positions are fixed near origin — player will encounter them naturally.
-    private val laserTrapOffsets: List<Pair<Float, Float>> = when (mapType) {
-        MapType.LAB -> listOf(
-            -250f to -250f,  250f to -250f,
-            -250f to  250f,  250f to  250f,
-            -750f to    0f,  750f to    0f,
-              0f to -750f,     0f to  750f
-        )
-        else -> emptyList()
-    }
+    // Chunking logic for static hazards (like Laser Traps)
+    private val spawnedChunks = mutableSetOf<Long>()
+    private val chunkEntities = mutableMapOf<Long, MutableList<Long>>()
+    
+    private val CHUNK_SIZE = 800f
+    private val ACTIVE_RADIUS = 2
+    private val DESPAWN_RADIUS = 4
 
     override fun update(deltaTime: Float, entities: List<Entity>) {
-        if (!initialized) {
-            initialized = true
-            if (mapType == MapType.LAB) {
-                for ((tx, ty) in laserTrapOffsets) spawnLaserTrap(tx, ty)
-            }
+        // Handle chunk-based map features (Laser traps in LAB)
+        if (mapType == MapType.LAB) {
+            tickChunkFeatures(entities)
         }
 
         when (mapType) {
@@ -85,6 +81,81 @@ class MapFeatureSystem(
             MapType.LAB           -> tickLaserTraps(deltaTime, entities)
             else -> {}
         }
+    }
+
+    private fun tickChunkFeatures(entities: List<Entity>) {
+        val (px, py) = playerPosition(entities) ?: return
+        
+        val playerChunkX = kotlin.math.floor(px / CHUNK_SIZE).toInt()
+        val playerChunkY = kotlin.math.floor(py / CHUNK_SIZE).toInt()
+
+        // Spawn nearby chunks
+        for (cx in (playerChunkX - ACTIVE_RADIUS)..(playerChunkX + ACTIVE_RADIUS)) {
+            for (cy in (playerChunkY - ACTIVE_RADIUS)..(playerChunkY + ACTIVE_RADIUS)) {
+                val chunkKey = packChunkKey(cx, cy)
+                if (chunkKey !in spawnedChunks) {
+                    spawnChunk(cx, cy, chunkKey)
+                }
+            }
+        }
+
+        // Despawn distant chunks
+        val chunksToRemove = mutableListOf<Long>()
+        chunkEntities.keys.forEach { key ->
+            val (cx, cy) = unpackChunkKey(key)
+            if (kotlin.math.abs(cx - playerChunkX) > DESPAWN_RADIUS ||
+                kotlin.math.abs(cy - playerChunkY) > DESPAWN_RADIUS) {
+                chunksToRemove.add(key)
+            }
+        }
+        
+        chunksToRemove.forEach { key ->
+            chunkEntities[key]?.forEach { entityId ->
+                onDespawnEntity?.invoke(entityId)
+            }
+            chunkEntities.remove(key)
+            spawnedChunks.remove(key)
+        }
+    }
+
+    private fun spawnChunk(chunkX: Int, chunkY: Int, chunkKey: Long) {
+        spawnedChunks.add(chunkKey)
+
+        val seed = mapType.ordinal.toLong() xor (chunkX.toLong() * 73856093L) xor (chunkY.toLong() * 19349663L)
+        val chunkRng = Random(seed)
+
+        val chunkWorldX = chunkX * CHUNK_SIZE
+        val chunkWorldY = chunkY * CHUNK_SIZE
+
+        val entityIds = mutableListOf<Long>()
+
+        // For Lab, maybe spawn 0 to 2 laser traps per chunk
+        if (mapType == MapType.LAB) {
+            val trapCount = chunkRng.nextInt(0, 3) 
+            repeat(trapCount) {
+                // Random position within the chunk
+                val offsetX = chunkRng.nextFloat() * CHUNK_SIZE
+                val offsetY = chunkRng.nextFloat() * CHUNK_SIZE
+                
+                val trap = createLaserTrap(chunkWorldX + offsetX, chunkWorldY + offsetY)
+                onSpawnEntity?.invoke(trap)
+                entityIds.add(trap.id)
+            }
+        }
+
+        if (entityIds.isNotEmpty()) {
+            chunkEntities[chunkKey] = entityIds
+        }
+    }
+
+    private fun packChunkKey(cx: Int, cy: Int): Long {
+        return (cx.toLong() shl 32) or (cy.toLong() and 0xFFFFFFFFL)
+    }
+
+    private fun unpackChunkKey(key: Long): Pair<Int, Int> {
+        val cx = (key shr 32).toInt()
+        val cy = key.toInt()
+        return cx to cy
     }
 
     // ─── Ammo spawn near player ───────────────────────────────────────────────
@@ -121,8 +192,8 @@ class MapFeatureSystem(
 
     // ─── Laser traps (Lab) ────────────────────────────────────────────────────
 
-    private fun spawnLaserTrap(x: Float, y: Float) {
-        val trap = Entity().apply {
+    private fun createLaserTrap(x: Float, y: Float): Entity {
+        return Entity().apply {
             addComponent(TransformComponent(x = x, y = y, scale = 1f))
             addComponent(SpriteComponent(
                 textureKey = "laser_grid_vfx",
@@ -138,7 +209,6 @@ class MapFeatureSystem(
             ))
             addComponent(LaserTrapComponent(damagePerInterval = 5f, damageInterval = 1.0f))
         }
-        onSpawnEntity?.invoke(trap)
     }
 
     private fun tickLaserTraps(deltaTime: Float, entities: List<Entity>) {
@@ -174,7 +244,24 @@ class MapFeatureSystem(
                     if (dx < (trapAABB.halfWidth + targetRadius) &&
                         dy < (trapAABB.halfHeight + targetRadius)
                     ) {
-                        targetHealth.takeDamage(trap.damagePerInterval.toInt(), targetStats?.armor ?: 0)
+                        val damageDealt = targetHealth.takeDamage(trap.damagePerInterval.toInt(), targetStats?.armor ?: 0)
+                        
+                        val popup = app.krafted.nightmarehorde.game.entities.DamagePopupEntity(
+                            x = targetTransform.x,
+                            y = targetTransform.y - 30f,
+                            damage = damageDealt
+                        )
+                        onSpawnEntity?.invoke(popup)
+
+                        app.krafted.nightmarehorde.game.entities.HitEffectEntity.burst(
+                            x = targetTransform.x,
+                            y = targetTransform.y
+                        ).forEach { onSpawnEntity?.invoke(it) }
+
+                        if (!targetHealth.isAlive && target.getComponent(PlayerTagComponent::class) == null) {
+                            onEnemyDeath?.invoke(target)
+                            target.isActive = false
+                        }
                     }
                 }
                 
@@ -201,7 +288,12 @@ class MapFeatureSystem(
     }
 
     fun reset() {
-        initialized = false
+        chunkEntities.values.flatten().forEach { entityId ->
+            onDespawnEntity?.invoke(entityId)
+        }
+        chunkEntities.clear()
+        spawnedChunks.clear()
+        
         ammoTimer   = 0f
         healthTimer = 0f
     }
