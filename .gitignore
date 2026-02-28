@@ -13,4 +13,6 @@ local.properties
 Legacy Collection/
 DEVELOPMENT_PLAN.md
 
-DEVELOPMENT_PLAN.md
+# Firebase
+google-services.json
+app/google-services.json

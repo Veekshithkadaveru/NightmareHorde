@@ -1,7 +1,11 @@
 package app.krafted.nightmarehorde.ui.screens
 
+import android.content.Context
+import android.os.Bundle
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import com.google.firebase.analytics.FirebaseAnalytics
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import androidx.lifecycle.viewModelScope
 import app.krafted.nightmarehorde.engine.core.Entity
 import app.krafted.nightmarehorde.engine.core.GameLoop
@@ -73,6 +77,8 @@ import app.krafted.nightmarehorde.game.systems.ZombieDamageSystem
 import app.krafted.nightmarehorde.game.weapons.EvolvedWeaponFactory
 import app.krafted.nightmarehorde.game.weapons.WeaponType
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -82,6 +88,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class GameViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     val gameLoop: GameLoop,
     val camera: Camera,
     val spriteRenderer: SpriteRenderer,
@@ -93,6 +100,17 @@ class GameViewModel @Inject constructor(
     val zombieAnimationSystem: ZombieAnimationSystem,
     val droneRenderer: DroneRenderer
 ) : ViewModel() {
+
+    // Firebase Analytics Instance
+    private val analytics = FirebaseAnalytics.getInstance(context)
+    private val crashlytics = FirebaseCrashlytics.getInstance()
+
+    // Coroutine exception handler — catches crashes in viewModelScope coroutines
+    private val crashHandler = CoroutineExceptionHandler { _, throwable ->
+        crashlytics.log("Uncaught coroutine exception in GameViewModel")
+        crashlytics.recordException(throwable)
+        Log.e("GameViewModel", "Coroutine crash", throwable)
+    }
 
     // ─── HUD State ────────────────────────────────────────────────────────
 
@@ -177,6 +195,7 @@ class GameViewModel @Inject constructor(
 
     private var isGameRunning = false
     private var playerEntity: Entity? = null
+    private var currentMapType: MapType? = null
     private lateinit var lootDropSystem: LootDropSystem
     private lateinit var waveSpawner: WaveSpawner
     private var dayNightCycle: DayNightCycle? = null
@@ -217,7 +236,23 @@ class GameViewModel @Inject constructor(
         isGameRunning = true
         _killCount.value = 0
         _gameTime.value = 0f
+        currentMapType = mapType
         weaponManager.reset()
+
+        // Log game start to Firebase Analytics
+        analytics.logEvent("run_start", Bundle().apply {
+            putString("character_class", characterClass.name)
+            putString("map_type", mapType.name)
+        })
+        
+        // Add custom keys to Crashlytics to aid in debugging
+        crashlytics.setCustomKey("current_map", mapType.name)
+        crashlytics.setCustomKey("character_class", characterClass.name)
+        crashlytics.setCustomKey("current_level", 1)
+        crashlytics.setCustomKey("current_kills", 0)
+        crashlytics.setCustomKey("boss_active", false)
+        crashlytics.setCustomKey("screen", "game")
+        crashlytics.log("Game started: map=${mapType.name}, character=${characterClass.name}")
 
         assetManager.preload(
             characterType.idleTextureKey,
@@ -390,7 +425,7 @@ class GameViewModel @Inject constructor(
         gameLoop.start(viewModelScope)
 
         // ─── Spawning Loop (uses authoritative nanoTime clock) ────────────
-        spawnJob = viewModelScope.launch {
+        spawnJob = viewModelScope.launch(crashHandler) {
             while (isGameRunning) {
                 val spawnInterval = waveSpawner.calculateSpawnInterval()
                 kotlinx.coroutines.delay(spawnInterval)
@@ -455,7 +490,7 @@ class GameViewModel @Inject constructor(
         }
 
         // ─── HUD Observer ─────────────────────────────────────────────────
-        hudObserverJob = viewModelScope.launch {
+        hudObserverJob = viewModelScope.launch(crashHandler) {
             while (isGameRunning) {
                 playerEntity?.let { player ->
                     val health = player.getComponent(HealthComponent::class)
@@ -495,6 +530,9 @@ class GameViewModel @Inject constructor(
                         }
                     }
                 }
+                // Track entity count for crash diagnostics (high counts may cause OOM/ANR)
+                crashlytics.setCustomKey("entity_count", gameLoop.getEntitiesSnapshot().size)
+
                 // Update day/night HUD state as a single atomic snapshot
                 // (safe-read — may be null during teardown)
                 dayNightCycle?.let { dnc ->
@@ -521,7 +559,7 @@ class GameViewModel @Inject constructor(
         }
 
         // Double-tap events (for turret menu in Phase D)
-        doubleTapJob = viewModelScope.launch {
+        doubleTapJob = viewModelScope.launch(crashHandler) {
             inputManager.doubleTapEvents.collect { position ->
                 Log.d("GameViewModel", "Double-tap for turret menu at: $position")
             }
@@ -529,8 +567,26 @@ class GameViewModel @Inject constructor(
     }
 
     fun stopGame(recordStats: Boolean = true) {
+        crashlytics.log("Game stopped: kills=${_killCount.value}, time=${if (::waveSpawner.isInitialized) waveSpawner.elapsedGameTime else 0f}, bosses=$bossesDefeated")
+        crashlytics.setCustomKey("screen", "menu")
         if (recordStats) {
             MapUnlockManager.recordRunEnd(bossesDefeated = bossesDefeated)
+            
+            // Log game over to Firebase Analytics
+            analytics.logEvent("run_end", Bundle().apply {
+                putInt("kills", _killCount.value)
+                putFloat("time_survived", waveSpawner.elapsedGameTime)
+                putInt("bosses_defeated", bossesDefeated)
+                putInt("level_reached", _xpState.value.currentLevel)
+            })
+
+            // Track early deaths to identify tutorials/balancing needs
+            if (waveSpawner.elapsedGameTime < 180f) { // Under 3 minutes
+                analytics.logEvent("early_death", Bundle().apply {
+                    putFloat("time_survived", waveSpawner.elapsedGameTime)
+                    putString("map", currentMapType?.name ?: "UNKNOWN")
+                })
+            }
         }
         isGameRunning = false
         spawnJob?.cancel()
@@ -616,6 +672,15 @@ class GameViewModel @Inject constructor(
             upgrade.apply(context)
             Log.d("GameViewModel", "Applied upgrade: ${upgrade.name} Lv${choice.nextLevel}")
 
+            // Log upgrade selected
+            analytics.logEvent("upgrade_selected", Bundle().apply {
+                putString("upgrade_id", upgrade.id)
+                putString("upgrade_name", upgrade.name)
+                putString("category", upgrade.category.name)
+                putInt("level", choice.nextLevel)
+                putInt("player_level", context.currentLevel)
+            })
+
             // Handle weapon evolution
             if (upgrade.category == UpgradeCategory.WEAPON_EVOLUTION) {
                 handleWeaponEvolution(upgrade.id, player)
@@ -634,6 +699,12 @@ class GameViewModel @Inject constructor(
             // Consume the level-up in the XP component
             val xpComp = player.getComponent(XPComponent::class)
             xpComp?.consumeLevelUp()
+            
+            // Update crashlytics breadcrumb
+            xpComp?.let {
+                crashlytics.setCustomKey("current_level", it.currentLevel)
+                crashlytics.log("Level up: level=${it.currentLevel}, upgrade=${upgrade.name}")
+            }
         }
 
         // Hide level-up UI and resume the game
@@ -648,6 +719,13 @@ class GameViewModel @Inject constructor(
         val evolvedWeapon = EvolvedWeaponFactory.create(recipe)
         inventory.replaceWeapon(recipe.baseWeaponType, evolvedWeapon)
         Log.d("GameViewModel", "Weapon evolved: ${recipe.displayName}")
+
+        // Log weapon evolution
+        analytics.logEvent("weapon_evolved", Bundle().apply {
+            putString("base_weapon", recipe.baseWeaponType.name)
+            putString("evolved_weapon", recipe.displayName)
+            putFloat("time_elapsed", waveSpawner.elapsedGameTime)
+        })
     }
 
     private fun checkSynergies(context: UpgradeContext) {
@@ -662,6 +740,13 @@ class GameViewModel @Inject constructor(
                 synergy.apply(context)
                 activatedSynergies.add(synergy.id)
                 Log.d("GameViewModel", "Synergy activated: ${synergy.name}")
+
+                // Log synergy activation
+                analytics.logEvent("synergy_activated", Bundle().apply {
+                    putString("synergy_id", synergy.id)
+                    putString("synergy_name", synergy.name)
+                    putFloat("time_elapsed", waveSpawner.elapsedGameTime)
+                })
             }
         }
     }
@@ -671,6 +756,9 @@ class GameViewModel @Inject constructor(
     private fun handleEnemyDeath(deadEntity: Entity) {
         _killCount.value++
         val kills = _killCount.value
+        
+        // Update crashlytics on kills
+        crashlytics.setCustomKey("current_kills", kills)
 
         // Refuel drones on any kill
         droneManager?.refuelAllDrones(DroneManager.REFUEL_ANY_KILL)
@@ -776,6 +864,17 @@ class GameViewModel @Inject constructor(
         activeBossEntity = boss
         isBossFightActive = true
 
+        // Log boss spawn
+        analytics.logEvent("boss_spawned", Bundle().apply {
+            putString("boss_type", bossType.name)
+            putInt("boss_number", bossNumber)
+        })
+        
+        // Update crashlytics state
+        crashlytics.setCustomKey("boss_active", true)
+        crashlytics.setCustomKey("active_boss_type", bossType.name)
+        crashlytics.log("Boss spawned: type=${bossType.name}, number=$bossNumber")
+
         Log.d("GameViewModel", "Boss spawned: ${bossType.displayName} (#$bossNumber)")
     }
 
@@ -787,6 +886,15 @@ class GameViewModel @Inject constructor(
 
         // Boss kill grants significant drone fuel
         droneManager?.refuelAllDrones(DroneManager.REFUEL_BOSS_KILL)
+
+        // Log boss defeated event
+        analytics.logEvent("boss_defeated", Bundle().apply {
+            putString("boss_type", bossComp.bossType.name)
+            putFloat("time_elapsed", waveSpawner.elapsedGameTime)
+        })
+
+        crashlytics.setCustomKey("boss_active", false)
+        crashlytics.log("Boss defeated: type=${bossComp.bossType.name}, total=$bossesDefeated")
 
         val transform = deadEntity.getComponent(TransformComponent::class)
         if (transform != null) {
