@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="app.krafted.nightmarehorde" />
+                  <option name="mobileSdkAppId" value="1:206483300828:android:14c3c9078915ede99c6f19" />
+                  <option name="projectId" value="nightmare-horde" />
+                  <option name="projectNumber" value="206483300828" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
