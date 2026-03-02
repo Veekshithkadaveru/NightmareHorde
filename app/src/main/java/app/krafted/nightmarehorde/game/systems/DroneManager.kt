@@ -29,7 +29,7 @@ class DroneManager(
         const val REFUEL_BOSS_KILL = 10f
     }
 
-    private val activeDroneIds = mutableListOf<Long>()
+    private val activeDroneIds = java.util.concurrent.CopyOnWriteArrayList<Long>()
 
     // ─── HUD State ──────────────────────────────────────────────────────
 
@@ -153,17 +153,12 @@ class DroneManager(
      */
     fun cleanupLostDrones() {
         val snapshot = gameLoop.getEntitiesSnapshot()
-        var changed = false
-        val iter = activeDroneIds.iterator()
-        while (iter.hasNext()) {
-            val id = iter.next()
+        val toRemove = activeDroneIds.filter { id ->
             val entity = snapshot.find { it.id == id }
-            if (entity == null || !entity.isActive) {
-                iter.remove()
-                changed = true
-            }
+            entity == null || !entity.isActive
         }
-        if (changed) {
+        if (toRemove.isNotEmpty()) {
+            activeDroneIds.removeAll(toRemove.toSet())
             recalculateFormation()
         }
     }

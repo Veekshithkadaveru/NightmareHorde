@@ -83,6 +83,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -254,7 +255,8 @@ class GameViewModel @Inject constructor(
         crashlytics.setCustomKey("screen", "game")
         crashlytics.log("Game started: map=${mapType.name}, character=${characterClass.name}")
 
-        assetManager.preload(
+        // Preload assets on IO thread to avoid blocking the main thread
+        val preloadKeys = arrayOf(
             characterType.idleTextureKey,
             characterType.runTextureKey,
             mapType.backgroundTextureKey,
@@ -275,6 +277,9 @@ class GameViewModel @Inject constructor(
             // Drone assets
             *DroneType.entries.map { it.textureKey }.toTypedArray()
         )
+        viewModelScope.launch(Dispatchers.IO) {
+            assetManager.preload(*preloadKeys)
+        }
 
         val spatialGrid = SpatialHashGrid()
 
@@ -567,23 +572,25 @@ class GameViewModel @Inject constructor(
     }
 
     fun stopGame(recordStats: Boolean = true) {
-        crashlytics.log("Game stopped: kills=${_killCount.value}, time=${if (::waveSpawner.isInitialized) waveSpawner.elapsedGameTime else 0f}, bosses=$bossesDefeated")
+        if (!isGameRunning) return
+        val elapsedTime = if (::waveSpawner.isInitialized) waveSpawner.elapsedGameTime else 0f
+        crashlytics.log("Game stopped: kills=${_killCount.value}, time=$elapsedTime, bosses=$bossesDefeated")
         crashlytics.setCustomKey("screen", "menu")
-        if (recordStats) {
+        if (recordStats && ::waveSpawner.isInitialized) {
             MapUnlockManager.recordRunEnd(bossesDefeated = bossesDefeated)
-            
+
             // Log game over to Firebase Analytics
             analytics.logEvent("run_end", Bundle().apply {
                 putInt("kills", _killCount.value)
-                putFloat("time_survived", waveSpawner.elapsedGameTime)
+                putFloat("time_survived", elapsedTime)
                 putInt("bosses_defeated", bossesDefeated)
                 putInt("level_reached", _xpState.value.currentLevel)
             })
 
             // Track early deaths to identify tutorials/balancing needs
-            if (waveSpawner.elapsedGameTime < 180f) { // Under 3 minutes
+            if (elapsedTime < 180f) { // Under 3 minutes
                 analytics.logEvent("early_death", Bundle().apply {
-                    putFloat("time_survived", waveSpawner.elapsedGameTime)
+                    putFloat("time_survived", elapsedTime)
                     putString("map", currentMapType?.name ?: "UNKNOWN")
                 })
             }
@@ -617,7 +624,16 @@ class GameViewModel @Inject constructor(
         mapSystem = null
         mapFeatureSystem?.reset()
         mapFeatureSystem = null
+        // Clear singleton AISystem references to prevent stale data between sessions
+        aiSystem.onSpawnEntity = null
+        aiSystem.dayNightCycle = null
+        aiSystem.clearPlayer()
         assetManager.clearCache()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        if (isGameRunning) stopGame(recordStats = false)
     }
 
     // ─── Weapon Switching (delegated) ─────────────────────────────────────

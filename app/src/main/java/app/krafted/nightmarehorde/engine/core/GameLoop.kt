@@ -27,8 +27,8 @@ import javax.inject.Singleton
  * touched from the game-loop coroutine.  Cross-thread additions go through a
  * lock-free [ConcurrentLinkedQueue] and are drained at the start of every
  * frame.  Dead-entity cleanup uses [ArrayList.removeIf] which compacts
- * in-place with zero temporary allocations.  A read-only snapshot is published
- * once per frame (via @Volatile) for other threads (e.g. WaveSpawner on Main).
+ * in-place with zero temporary allocations.  A double-buffered snapshot is
+ * published once per frame (via @Volatile) for other threads.
  */
 @Singleton
 class GameLoop @Inject constructor() {
@@ -50,16 +50,19 @@ class GameLoop @Inject constructor() {
     //                 are drained into `entities` at the very start of each
     //                 frame.
     //
-    // Snapshot:  A read-only copy published at the end of every frame so that
-    //            cross-thread readers (WaveSpawner, ObstacleSpawnSystem
-    //            callbacks) never race against game-loop mutations.
+    // Snapshot:  A fresh copy is published once per frame via @Volatile,
+    //            guaranteeing readers never see a half-modified list.
     // ──────────────────────────────────────────────────────────────────────
 
     private val entities = ArrayList<Entity>(256)
     private val pendingAdditions = ConcurrentLinkedQueue<Entity>()
 
+
     @Volatile
     private var snapshot: List<Entity> = emptyList()
+
+    // Flag to request clear from any thread — processed at start of next frame
+    private val pendingClear = AtomicBoolean(false)
 
     // Target 60 FPS
     private val targetFrameTime = 1_000_000_000L / 60L // in nanoseconds
@@ -158,49 +161,67 @@ class GameLoop @Inject constructor() {
     fun getEntitiesSnapshot(): List<Entity> = snapshot
 
     /**
-     * Clears all entities and systems.
-     * Synchronized with [update] so we never clear mid-frame.
+     * Requests clearing all entities and systems.
+     * The actual clear happens at the start of the next frame to avoid
+     * blocking the main thread on the game loop's synchronized block.
      */
     fun clear() {
-        synchronized(this) {
-            entities.clear()
-            pendingAdditions.clear()
-            snapshot = emptyList()
-            systems.clear()
-        }
+        pendingClear.set(true)
+        // Also drain any pending additions so they don't leak into the next session
+        pendingAdditions.clear()
     }
 
     // ─── Frame Update ─────────────────────────────────────────────────────
 
     private fun update(deltaTime: Float) {
-        synchronized(this) {
-            // 1. Drain pending additions (lock-free queue → ArrayList).
-            //    Entities added by systems during this frame will appear next frame.
-            while (true) {
-                val e = pendingAdditions.poll() ?: break
-                entities.add(e)
-            }
-
-            // 1b. If paused, still publish snapshot (for rendering) but skip systems.
-            if (_isPaused.get()) {
-                snapshot = ArrayList(entities)
-                return
-            }
-
-            // 2. Run all systems.  `entities` is not structurally modified during
-            //    system execution because addEntity() goes to the pending queue
-            //    and removeEntity() only flips a boolean.
-            systems.forEach { system ->
-                system.update(deltaTime, entities)
-            }
-
-            // 3. Remove dead entities IN-PLACE.
-            //    ArrayList.removeIf uses a single O(n) pass with an internal BitSet
-            //    — zero temporary lists, zero per-element array copies.
-            entities.removeIf { !it.isActive }
-
-            // 4. Publish a read-only snapshot for cross-thread readers.
-            snapshot = ArrayList(entities)
+        // Handle pending clear request (lock-free, no contention with main thread)
+        if (pendingClear.getAndSet(false)) {
+            entities.clear()
+            pendingAdditions.clear()
+            snapshot = emptyList()
+            systems.clear()
+            return
         }
+
+        // 1. Drain pending additions (lock-free queue → ArrayList).
+        //    Entities added by systems during this frame will appear next frame.
+        while (true) {
+            val e = pendingAdditions.poll() ?: break
+            entities.add(e)
+        }
+
+        // 1b. If paused, still publish snapshot (for rendering) but skip systems.
+        if (_isPaused.get()) {
+            publishSnapshot()
+            return
+        }
+
+        // 2. Run all systems.  `entities` is not structurally modified during
+        //    system execution because addEntity() goes to the pending queue
+        //    and removeEntity() only flips a boolean.
+        systems.forEach { system ->
+            system.update(deltaTime, entities)
+        }
+
+        // 3. Remove dead entities IN-PLACE.
+        //    ArrayList.removeIf uses a single O(n) pass with an internal BitSet
+        //    — zero temporary lists, zero per-element array copies.
+        entities.removeIf { !it.isActive }
+
+        // 4. Publish a read-only snapshot for cross-thread readers.
+        publishSnapshot()
+    }
+
+    /**
+     * Publishes a fresh, immutable snapshot each frame.
+     *
+     * Previous double-buffered approach reused two ArrayLists, but readers
+     * on other threads (DroneManager, UpgradePool) could still be iterating
+     * a buffer when the game loop recycled it 2 frames later, causing
+     * ConcurrentModificationException.  A new ArrayList per frame is cheap
+     * (~one small allocation at 60 FPS) and guarantees thread safety.
+     */
+    private fun publishSnapshot() {
+        snapshot = ArrayList(entities)
     }
 }

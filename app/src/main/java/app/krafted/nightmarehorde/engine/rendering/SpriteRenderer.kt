@@ -30,7 +30,10 @@ class SpriteRenderer @Inject constructor(
          */
         private const val SIZE_FALLBACK_CULLING = 64f
     }
-    
+
+    // Reusable render list to avoid per-frame allocations
+    private val renderBuffer = ArrayList<RenderData>(256)
+
     /**
      * Render all entities with sprites to the given DrawScope.
      * @param drawScope The Compose Canvas DrawScope
@@ -42,29 +45,35 @@ class SpriteRenderer @Inject constructor(
         entities: List<Entity>,
         camera: Camera
     ) {
-        // Filter to entities with both transform and sprite, then sort by layer
-        // Optimization: In a real engine, we'd maintain a sorted Z-list or use a dedicated render system
-        // providing a pre-sorted list. For now, we accept the sort overhead.
-        val renderables = entities
-            .mapNotNull { entity ->
-                val transform = entity.getComponent(TransformComponent::class)
-                val sprite = entity.getComponent(SpriteComponent::class)
-                if (transform != null && sprite != null && sprite.visible) {
-                    RenderData(entity, transform, sprite)
-                } else null
+        // Reuse buffer instead of allocating new lists every frame
+        renderBuffer.clear()
+        for (entity in entities) {
+            val transform = entity.getComponent(TransformComponent::class) ?: continue
+            val sprite = entity.getComponent(SpriteComponent::class) ?: continue
+            if (sprite.visible) {
+                // Snapshot sort keys now so they can't change during sort
+                val sortY = transform.y.let { if (it.isNaN()) 0f else it }
+                renderBuffer.add(RenderData(entity, transform, sprite, sprite.layer, sortY))
             }
-            .sortedWith(compareBy<RenderData> { it.sprite.layer }.thenBy { it.transform.y })
-        
+        }
+        renderBuffer.sortWith(renderComparator)
+
         // Get visible bounds for culling
         val visibleBounds = camera.getVisibleBounds()
-        
+
         // Render each sprite
-        renderables.forEach { data ->
+        for (data in renderBuffer) {
             // Simple frustum culling (fillViewport sprites always pass)
-            if (!isVisible(data.transform, data.sprite, visibleBounds)) return@forEach
-            
+            if (!isVisible(data.transform, data.sprite, visibleBounds)) continue
+
             renderSprite(drawScope, data, camera)
         }
+    }
+
+    private val renderComparator = Comparator<RenderData> { a, b ->
+        val layerCmp = a.sortLayer.compareTo(b.sortLayer)
+        if (layerCmp != 0) layerCmp
+        else a.sortY.compareTo(b.sortY)
     }
     
     private fun renderSprite(
@@ -100,15 +109,17 @@ class SpriteRenderer @Inject constructor(
             }
         }
         
-        // Calculate display size and screen position
+        // Calculate display size and screen position (inline to avoid Pair boxing)
         val spriteWidth = if (data.sprite.width > 0) data.sprite.width else srcWidth.toFloat()
         val spriteHeight = if (data.sprite.height > 0) data.sprite.height else srcHeight.toFloat()
-        val (screenX, screenY) = camera.worldToScreen(data.transform.x, data.transform.y)
-        
+        var screenX = 0f
+        var screenY = 0f
+        camera.worldToScreen(data.transform.x, data.transform.y) { sx, sy -> screenX = sx; screenY = sy }
+
         // Calculate screen size with zoom
         val screenWidth = spriteWidth * camera.zoom
         val screenHeight = spriteHeight * camera.zoom
-        
+
         drawScope.withTransform({
             // Translate to position (centered on entity position)
             translate(
@@ -251,6 +262,10 @@ class SpriteRenderer @Inject constructor(
     private data class RenderData(
         val entity: Entity,
         val transform: TransformComponent,
-        val sprite: SpriteComponent
+        val sprite: SpriteComponent,
+        /** Snapshotted at construction time — immutable during sort */
+        val sortLayer: Int,
+        /** Snapshotted at construction time — immutable during sort */
+        val sortY: Float
     )
 }

@@ -37,7 +37,9 @@ class ParticleRenderer @Inject constructor() {
                 transform.y < visibleBounds.top - margin || transform.y > visibleBounds.bottom + margin
             ) return@forEach
 
-            val (screenX, screenY) = camera.worldToScreen(transform.x, transform.y)
+            var screenX = 0f
+            var screenY = 0f
+            camera.worldToScreen(transform.x, transform.y) { sx, sy -> screenX = sx; screenY = sy }
 
             // Fade out over lifetime
             val alpha = if (particle.fadeOut) {

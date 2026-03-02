@@ -26,6 +26,8 @@ class SpatialHashGrid(
      * Insert an entity into the grid at the given position.
      */
     fun insert(entity: Entity, x: Float, y: Float) {
+        // Guard: non-finite positions would hash to garbage cells and corrupt the grid
+        if (!x.isFinite() || !y.isFinite()) return
         val key = hashKey(x, y)
         val cell = cells.getOrPut(key) { mutableListOf() }
         cell.add(entity)
@@ -58,12 +60,19 @@ class SpatialHashGrid(
      * The list is NOT cleared - caller should clear if needed.
      */
     fun queryInto(centerX: Float, centerY: Float, radius: Float, result: MutableList<Entity>) {
+        // Guard: non-finite inputs would produce Int.MIN..MAX ranges → infinite loop
+        if (!centerX.isFinite() || !centerY.isFinite() || !radius.isFinite()) return
+
         // Calculate the range of cells to check
         val minCellX = ((centerX - radius) / cellSize).toInt()
         val maxCellX = ((centerX + radius) / cellSize).toInt()
         val minCellY = ((centerY - radius) / cellSize).toInt()
         val maxCellY = ((centerY + radius) / cellSize).toInt()
-        
+
+        // Safety cap: if the range spans more than 20 cells in either axis,
+        // something is wrong (e.g. extreme position values). Skip the query.
+        if ((maxCellX - minCellX) > 20 || (maxCellY - minCellY) > 20) return
+
         for (cellX in minCellX..maxCellX) {
             for (cellY in minCellY..maxCellY) {
                 val key = hashKeyFromCell(cellX, cellY)
@@ -85,11 +94,15 @@ class SpatialHashGrid(
      * Query entities in rectangle into a provided list (zero-allocation in hot path).
      */
     fun queryRectInto(left: Float, top: Float, right: Float, bottom: Float, result: MutableList<Entity>) {
+        if (!left.isFinite() || !top.isFinite() || !right.isFinite() || !bottom.isFinite()) return
+
         val minCellX = (left / cellSize).toInt()
         val maxCellX = (right / cellSize).toInt()
         val minCellY = (top / cellSize).toInt()
         val maxCellY = (bottom / cellSize).toInt()
-        
+
+        if ((maxCellX - minCellX) > 20 || (maxCellY - minCellY) > 20) return
+
         for (cellX in minCellX..maxCellX) {
             for (cellY in minCellY..maxCellY) {
                 val key = hashKeyFromCell(cellX, cellY)

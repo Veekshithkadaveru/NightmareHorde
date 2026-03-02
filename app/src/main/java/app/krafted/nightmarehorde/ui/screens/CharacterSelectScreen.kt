@@ -291,72 +291,76 @@ private fun CharacterCard(
                     modifier = Modifier.alpha(0.6f)
                 )
             } else {
-                // Draw only the first frame from the sprite sheet
+                // Decode sprite on background thread to avoid main thread ANR
                 val charType = characterClass.characterType
                 val context = LocalContext.current
-                val firstFrame = remember(characterClass) {
-                    val resId = getIdleSpriteRes(characterClass)
-                    val opts = android.graphics.BitmapFactory.Options().apply {
-                        inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
-                    }
-                    val full = android.graphics.BitmapFactory.decodeResource(context.resources, resId, opts)
-                    val frame = android.graphics.Bitmap.createBitmap(
-                        full, 0, 0, charType.frameWidth, charType.frameHeight
-                    )
-                    if (frame !== full) full.recycle()
+                var firstFrame by remember(characterClass) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+                LaunchedEffect(characterClass) {
+                    firstFrame = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        val resId = getIdleSpriteRes(characterClass)
+                        val opts = android.graphics.BitmapFactory.Options().apply {
+                            inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
+                        }
+                        val full = android.graphics.BitmapFactory.decodeResource(context.resources, resId, opts)
+                        val frame = android.graphics.Bitmap.createBitmap(
+                            full, 0, 0, charType.frameWidth, charType.frameHeight
+                        )
+                        if (frame !== full) full.recycle()
 
-                    // Crop to non-transparent bounding box so characters uniformly fit the UI box
-                    val width = frame.width
-                    val height = frame.height
-                    val pixels = IntArray(width * height)
-                    frame.getPixels(pixels, 0, width, 0, 0, width, height)
+                        val width = frame.width
+                        val height = frame.height
+                        val pixels = IntArray(width * height)
+                        frame.getPixels(pixels, 0, width, 0, 0, width, height)
 
-                    var minX = width
-                    var minY = height
-                    var maxX = -1
-                    var maxY = -1
+                        var minX = width
+                        var minY = height
+                        var maxX = -1
+                        var maxY = -1
 
-                    for (y in 0 until height) {
-                        for (x in 0 until width) {
-                            val alpha = (pixels[y * width + x] ushr 24) and 0xFF
-                            if (alpha > 0) {
-                                if (x < minX) minX = x
-                                if (x > maxX) maxX = x
-                                if (y < minY) minY = y
-                                if (y > maxY) maxY = y
+                        for (y in 0 until height) {
+                            for (x in 0 until width) {
+                                val alpha = (pixels[y * width + x] ushr 24) and 0xFF
+                                if (alpha > 0) {
+                                    if (x < minX) minX = x
+                                    if (x > maxX) maxX = x
+                                    if (y < minY) minY = y
+                                    if (y > maxY) maxY = y
+                                }
                             }
                         }
-                    }
 
-                    val cropped = if (maxX >= minX && maxY >= minY) {
-                        val cropWidth = maxX - minX + 1
-                        val cropHeight = maxY - minY + 1
-                        android.graphics.Bitmap.createBitmap(frame, minX, minY, cropWidth, cropHeight)
-                    } else {
-                        frame
-                    }
-                    if (cropped !== frame) frame.recycle()
+                        val cropped = if (maxX >= minX && maxY >= minY) {
+                            val cropWidth = maxX - minX + 1
+                            val cropHeight = maxY - minY + 1
+                            android.graphics.Bitmap.createBitmap(frame, minX, minY, cropWidth, cropHeight)
+                        } else {
+                            frame
+                        }
+                        if (cropped !== frame) frame.recycle()
 
-                    cropped.asImageBitmap()
+                        cropped.asImageBitmap()
+                    }
                 }
-                Canvas(modifier = Modifier.fillMaxSize().padding(8.dp)) {
-                    val imgWidth = firstFrame.width.toFloat()
-                    val imgHeight = firstFrame.height.toFloat()
+                val loadedFrame = firstFrame
+                if (loadedFrame != null) {
+                    Canvas(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+                        val imgWidth = loadedFrame.width.toFloat()
+                        val imgHeight = loadedFrame.height.toFloat()
 
-                    // Scale the cropped sprite to fit nicely within the padded Canvas
-                    val scale = minOf(size.width / imgWidth, size.height / imgHeight)
-                    val targetWidth = imgWidth * scale
-                    val targetHeight = imgHeight * scale
+                        val scale = minOf(size.width / imgWidth, size.height / imgHeight)
+                        val targetWidth = imgWidth * scale
+                        val targetHeight = imgHeight * scale
 
-                    val xOffset = (size.width - targetWidth) / 2f
-                    val yOffset = (size.height - targetHeight) / 2f
+                        val xOffset = (size.width - targetWidth) / 2f
+                        val yOffset = (size.height - targetHeight) / 2f
 
-                    drawImage(
-                        image = firstFrame,
-                        dstOffset = IntOffset(xOffset.toInt(), yOffset.toInt()),
-                        dstSize = IntSize(targetWidth.toInt(), targetHeight.toInt()),
-                        filterQuality = FilterQuality.None
-                    )
+                        drawImage(
+                            image = loadedFrame,
+                            dstOffset = IntOffset(xOffset.toInt(), yOffset.toInt()),
+                            dstSize = IntSize(targetWidth.toInt(), targetHeight.toInt()),
+                            filterQuality = FilterQuality.None
+                        )
+                    }
                 }
             }
         }

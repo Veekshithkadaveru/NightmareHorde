@@ -61,8 +61,9 @@ class AssetManager @Inject constructor(
      * Call this when transitioning between game states that use different assets.
      */
     fun clearCache() {
-        bitmapCache.clear()
+        // SpriteSheet references bitmaps from bitmapCache, so clear them first
         spriteSheetCache.clear()
+        bitmapCache.clear()
     }
     
     /**

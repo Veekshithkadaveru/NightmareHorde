@@ -24,23 +24,28 @@ class CollisionResponseSystem : GameSystem(priority = 55) {
         const val TAG = "CollisionResponse"
     }
 
-    override fun update(deltaTime: Float, entities: List<Entity>) {
-        // Collect obstacles once per frame
-        val obstacles = mutableListOf<Triple<Entity, TransformComponent, ColliderComponent>>()
-        val movers = mutableListOf<Triple<Entity, TransformComponent, ColliderComponent>>()
+    // Reusable buffers to avoid per-frame allocations
+    private data class CollisionEntry(val entity: Entity, val transform: TransformComponent, val collider: ColliderComponent)
+    private val obstacles = ArrayList<CollisionEntry>(64)
+    private val movers = ArrayList<CollisionEntry>(128)
 
-        entities.forEach { entity ->
-            val transform = entity.getComponent(TransformComponent::class) ?: return@forEach
-            val collider = entity.getComponent(ColliderComponent::class) ?: return@forEach
+    override fun update(deltaTime: Float, entities: List<Entity>) {
+        // Collect obstacles once per frame using reusable buffers
+        obstacles.clear()
+        movers.clear()
+
+        for (entity in entities) {
+            val transform = entity.getComponent(TransformComponent::class) ?: continue
+            val collider = entity.getComponent(ColliderComponent::class) ?: continue
 
             when (collider.layer) {
                 CollisionLayer.OBSTACLE -> {
                     if (!collider.isTrigger) {
-                        obstacles.add(Triple(entity, transform, collider))
+                        obstacles.add(CollisionEntry(entity, transform, collider))
                     }
                 }
                 CollisionLayer.PLAYER, CollisionLayer.ENEMY -> {
-                    movers.add(Triple(entity, transform, collider))
+                    movers.add(CollisionEntry(entity, transform, collider))
                 }
                 else -> { /* skip */ }
             }
@@ -49,16 +54,16 @@ class CollisionResponseSystem : GameSystem(priority = 55) {
         if (obstacles.isEmpty() || movers.isEmpty()) return
 
         // For each mover, check against all nearby obstacles
-        movers.forEach { (_, moverTransform, moverCollider) ->
-            obstacles.forEach { (_, obsTransform, obsCollider) ->
+        for (mover in movers) {
+            for (obs in obstacles) {
                 // Quick distance check to skip far obstacles
-                val dx = moverTransform.x - obsTransform.x
-                val dy = moverTransform.y - obsTransform.y
+                val dx = mover.transform.x - obs.transform.x
+                val dy = mover.transform.y - obs.transform.y
                 val distSq = dx * dx + dy * dy
-                val maxRange = getMaxExtent(moverCollider) + getMaxExtent(obsCollider)
-                if (distSq > maxRange * maxRange) return@forEach
+                val maxRange = getMaxExtent(mover.collider) + getMaxExtent(obs.collider)
+                if (distSq > maxRange * maxRange) continue
 
-                resolveOverlap(moverTransform, moverCollider, obsTransform, obsCollider)
+                resolveOverlap(mover.transform, mover.collider, obs.transform, obs.collider)
             }
         }
     }

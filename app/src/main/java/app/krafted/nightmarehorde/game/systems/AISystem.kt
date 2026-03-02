@@ -52,6 +52,10 @@ class AISystem @Inject constructor() : GameSystem(priority = 18) {
         playerEntity = player
     }
 
+    fun clearPlayer() {
+        playerEntity = null
+    }
+
     override fun update(deltaTime: Float, entities: List<Entity>) {
         val player = playerEntity ?: return
         val playerTransform = player.getComponent(TransformComponent::class) ?: return
