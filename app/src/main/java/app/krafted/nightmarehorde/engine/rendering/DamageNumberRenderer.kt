@@ -33,6 +33,10 @@ class DamageNumberRenderer @Inject constructor() {
         )
     )
 
+    // Cached style per zoom level to reduce per-popup allocations
+    private var cachedZoom = -1f
+    private var cachedBaseStyle = textStyle
+
     fun render(
         drawScope: DrawScope,
         entities: List<Entity>,
@@ -40,6 +44,13 @@ class DamageNumberRenderer @Inject constructor() {
         textMeasurer: TextMeasurer
     ) {
         val visibleBounds = camera.getVisibleBounds()
+
+        // Rebuild base style only when zoom changes (once per frame at most)
+        val currentZoom = camera.zoom.coerceAtLeast(0.5f)
+        if (currentZoom != cachedZoom) {
+            cachedZoom = currentZoom
+            cachedBaseStyle = textStyle.copy(fontSize = (16f * currentZoom).sp)
+        }
 
         entities.forEach { entity ->
             val popup = entity.getComponent(DamagePopupComponent::class)
@@ -51,17 +62,20 @@ class DamageNumberRenderer @Inject constructor() {
                     transform.y < visibleBounds.top || transform.y > visibleBounds.bottom
                 ) return@forEach
 
-                val (screenX, screenY) = camera.worldToScreen(transform.x, transform.y)
+                var screenX = 0f
+                var screenY = 0f
+                camera.worldToScreen(transform.x, transform.y) { sx, sy -> screenX = sx; screenY = sy }
 
-                drawScope.drawText(
-                    textMeasurer = textMeasurer,
+                val alpha = (1f - (popup.timeAlive / popup.lifeTime)).coerceIn(0f, 1f)
+                val textLayoutResult = textMeasurer.measure(
                     text = popup.damageAmount.toString(),
-                    topLeft = Offset(screenX, screenY),
-                    style = textStyle.copy(
-                        color = Color.White.copy(alpha = (1f - (popup.timeAlive / popup.lifeTime)).coerceIn(0f, 1f)),
-                        fontSize = (16f * camera.zoom.coerceAtLeast(0.5f)).sp // Clamp zoom to avoid invisible/negative constraint crash
-                    )
+                    style = cachedBaseStyle.copy(color = Color.White.copy(alpha = alpha))
                 )
+                drawScope.withTransform({
+                    translate(left = screenX, top = screenY)
+                }) {
+                    drawText(textLayoutResult = textLayoutResult)
+                }
             }
         }
     }

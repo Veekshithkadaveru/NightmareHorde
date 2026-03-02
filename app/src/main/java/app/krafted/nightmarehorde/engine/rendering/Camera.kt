@@ -102,6 +102,17 @@ class Camera @Inject constructor() {
     
     /**
      * Convert world coordinates to screen coordinates.
+     * Uses inline lambda to avoid Pair boxing in the hot render path.
+     */
+    inline fun worldToScreen(worldX: Float, worldY: Float, block: (screenX: Float, screenY: Float) -> Unit) {
+        val screenX = (worldX - x) * zoom + screenWidth / 2f
+        val screenY = (worldY - y) * zoom + screenHeight / 2f
+        block(screenX, screenY)
+    }
+
+    /**
+     * Convert world coordinates to screen coordinates.
+     * Allocates a Pair — use the inline overload in hot paths to avoid boxing.
      */
     fun worldToScreen(worldX: Float, worldY: Float): Pair<Float, Float> {
         val screenX = (worldX - x) * zoom + screenWidth / 2f

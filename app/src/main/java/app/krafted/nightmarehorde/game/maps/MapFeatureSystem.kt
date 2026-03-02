@@ -228,9 +228,9 @@ class MapFeatureSystem(
 
             if (trap.timeSinceDamage >= trap.damageInterval) {
                 targets.forEach { target ->
-                    val targetTransform = target.getComponent(TransformComponent::class)!!
-                    val targetCollider  = target.getComponent(ColliderComponent::class)!!
-                    val targetHealth    = target.getComponent(HealthComponent::class)!!
+                    val targetTransform = target.getComponent(TransformComponent::class) ?: return@forEach
+                    val targetCollider  = target.getComponent(ColliderComponent::class) ?: return@forEach
+                    val targetHealth    = target.getComponent(HealthComponent::class) ?: return@forEach
                     val targetStats     = target.getComponent(StatsComponent::class)
 
                     val targetRadius = when (val shape = targetCollider.collider) {

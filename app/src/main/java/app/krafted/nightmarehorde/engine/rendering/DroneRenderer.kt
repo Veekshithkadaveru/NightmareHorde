@@ -35,7 +35,9 @@ class DroneRenderer @Inject constructor() {
                 transform.y < visibleBounds.top - 30f || transform.y > visibleBounds.bottom + 30f
             ) continue
 
-            val (screenX, screenY) = camera.worldToScreen(transform.x, transform.y)
+            var screenX = 0f
+            var screenY = 0f
+            camera.worldToScreen(transform.x, transform.y) { sx, sy -> screenX = sx; screenY = sy }
 
             drawFuelBar(drawScope, screenX, screenY, drone, camera.zoom)
         }

@@ -17,15 +17,22 @@ class PickupAnimationSystem : GameSystem(priority = 26) {
     private val controllers = mutableMapOf<Long, AnimationController>()
     private val configuredTexture = mutableMapOf<Long, String>()
 
+    // Reusable set to track alive pickup IDs for cleanup, avoiding per-frame HashSet allocation
+    private val alivePickupIds = HashSet<Long>(64)
+
     companion object {
         private const val ANIMATION_FPS = 10f
     }
 
     override fun update(deltaTime: Float, entities: List<Entity>) {
+        alivePickupIds.clear()
+
         entities.forEach { entity ->
             if (!entity.isActive) return@forEach
             entity.getComponent(PickupTagComponent::class) ?: return@forEach
             val sprite = entity.getComponent(SpriteComponent::class) ?: return@forEach
+
+            alivePickupIds.add(entity.id)
 
             val controller = controllers.getOrPut(entity.id) { AnimationController() }
             val textureKey = sprite.textureKey
@@ -46,8 +53,8 @@ class PickupAnimationSystem : GameSystem(priority = 26) {
             sprite.currentFrame = controller.currentFrame
         }
 
-        val aliveIds = entities.filter { it.isActive }.mapTo(HashSet()) { it.id }
-        controllers.keys.retainAll(aliveIds)
-        configuredTexture.keys.retainAll(aliveIds)
+        // Clean up controllers for dead entities using the reusable set
+        controllers.keys.retainAll(alivePickupIds)
+        configuredTexture.keys.retainAll(alivePickupIds)
     }
 }
