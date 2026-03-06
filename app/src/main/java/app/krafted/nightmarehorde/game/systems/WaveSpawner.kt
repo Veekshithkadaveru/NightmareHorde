@@ -40,13 +40,15 @@ class WaveSpawner(
         const val BASE_MAX_ENEMIES = 15
         const val ABSOLUTE_MAX_ENEMIES = 100
 
-        // Zombie type unlock times (seconds)
-        const val RUNNER_UNLOCK_TIME = 60f
-        const val BLOATER_UNLOCK_TIME = 180f
-        const val SPITTER_UNLOCK_TIME = 180f
-        const val BRUTE_UNLOCK_TIME = 300f
-        const val CRAWLER_UNLOCK_TIME = 300f
-        const val SCREAMER_UNLOCK_TIME = 600f
+        // Zombie type unlock times (seconds) - Spaced up to 10 minutes
+        const val RUNNER_UNLOCK_TIME = 75f     // 1m 15s
+        const val CRAWLER_UNLOCK_TIME = 150f    // 2m 30s
+        const val BLOATER_UNLOCK_TIME = 225f    // 3m 45s
+        const val SPITTER_UNLOCK_TIME = 300f    // 5m 00s
+        const val HELLHOUND_UNLOCK_TIME = 375f  // 6m 15s
+        const val SCREAMER_UNLOCK_TIME = 450f   // 7m 30s
+        const val ARMORED_UNLOCK_TIME = 525f    // 8m 45s
+        const val BRUTE_UNLOCK_TIME = 600f      // 10m 00s
     }
 
     // ─── Authoritative Timer ──────────────────────────────────────────────
@@ -131,12 +133,14 @@ class WaveSpawner(
     fun getAvailableZombieTypes(): List<ZombieType> {
         val types = mutableListOf(ZombieType.WALKER)
 
-        if (elapsedGameTime >= RUNNER_UNLOCK_TIME) types.add(ZombieType.RUNNER)
-        if (elapsedGameTime >= BLOATER_UNLOCK_TIME) types.add(ZombieType.BLOATER)
-        if (elapsedGameTime >= SPITTER_UNLOCK_TIME) types.add(ZombieType.SPITTER)
-        if (elapsedGameTime >= BRUTE_UNLOCK_TIME) types.add(ZombieType.BRUTE)
+        if (elapsedGameTime >= RUNNER_UNLOCK_TIME) types.add(ZombieType.RUNNER) 
         if (elapsedGameTime >= CRAWLER_UNLOCK_TIME) types.add(ZombieType.CRAWLER)
+        if (elapsedGameTime >= BLOATER_UNLOCK_TIME) types.add(ZombieType.BLOATER) 
+        if (elapsedGameTime >= SPITTER_UNLOCK_TIME) types.add(ZombieType.SPITTER) 
+        if (elapsedGameTime >= HELLHOUND_UNLOCK_TIME) types.add(ZombieType.HELLHOUND)
         if (elapsedGameTime >= SCREAMER_UNLOCK_TIME) types.add(ZombieType.SCREAMER)
+        if (elapsedGameTime >= ARMORED_UNLOCK_TIME) types.add(ZombieType.ARMORED)
+        if (elapsedGameTime >= BRUTE_UNLOCK_TIME) types.add(ZombieType.BRUTE)
 
         return types
     }
@@ -144,13 +148,15 @@ class WaveSpawner(
     fun pickWeightedZombieType(available: List<ZombieType>): ZombieType {
         val weights = available.map { type ->
             when (type) {
-                ZombieType.WALKER -> 40
+                ZombieType.WALKER -> 35
                 ZombieType.RUNNER -> 25
-                ZombieType.CRAWLER -> 15
-                ZombieType.BLOATER -> 8
-                ZombieType.SPITTER -> 6
-                ZombieType.BRUTE -> 4
-                ZombieType.SCREAMER -> 2
+                ZombieType.CRAWLER -> 20
+                ZombieType.BLOATER -> 12
+                ZombieType.SPITTER -> 10
+                ZombieType.HELLHOUND -> 8
+                ZombieType.SCREAMER -> 4
+                ZombieType.ARMORED -> 4
+                ZombieType.BRUTE -> 6
             }
         }
 
