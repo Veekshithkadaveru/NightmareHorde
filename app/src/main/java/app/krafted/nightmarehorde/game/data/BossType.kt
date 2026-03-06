@@ -37,75 +37,75 @@ enum class BossType(
     // Ordered weakest → strongest. The spawn order follows enum ordinal.
 
     /**
-     * Hive Queen — An insectoid queen that spawns minions.
-     * Attacks: Spawn Minions, Acid Spray (cone projectiles), Burrow (teleport + AOE)
-     * First boss encounter — lowest HP & damage, but tricky mechanics.
+     * The Widowmaker — A giant venomous mutant spider.
+     * Attacks: Spawn Spiderlings, Web Throw (slows player), Drop (teleport from ceiling + AOE)
+     * First boss encounter — lowest HP, but floods the map with minions and webs.
      */
-    HIVE_QUEEN(
-        displayName = "Hive Queen",
-        assetName = "boss_hive_queen",
+    WIDOWMAKER(
+        displayName = "The Widowmaker",
+        assetName = "boss_widowmaker",
         baseHealth = 600,
         damage = 25f,
-        moveSpeed = 40f,
+        moveSpeed = 45f,
         xpReward = 80,
         colliderRadius = 36f,
-        behavior = AIBehavior.BOSS_HIVE_QUEEN,
-        frameWidth = 48,
-        frameHeight = 48,
-        frameCount = 8,
+        behavior = AIBehavior.BOSS_WIDOWMAKER,
+        frameWidth = 80,
+        frameHeight = 80,
+        frameCount = 7,
         animationFps = 10f,
-        scale = 2.0f,              // Small sprite scaled up to boss size
-        accentColor = 0xFF44CC44,  // Toxic green
+        scale = 2.5f,              // Boss size scalar
+        accentColor = 0xFF8844FF,  // Venomous purple
         multiHitResistance = 0.55f, // 55% reduced damage from multi-hit weapons
-        preferredRange = 250f       // Prefers mid-range for acid spray
+        preferredRange = 250f       // Prefers mid-range for web throws
     ),
 
     /**
-     * The Tank — A massive armored zombie.
-     * Attacks: Ground Slam (AOE), Rock Throw (projectile), Charge (dash)
-     * Mid-tier boss — high HP, heavy melee damage.
+     * The Executioner — A colossal undead gladiator wielding a bloody battleaxe.
+     * Attacks: Axe Sweep (heavy melee), Throwing Axes (projectile), Leaping Strike (dash + slam)
+     * Mid-tier boss — massive HP, heavy slow melee damage.
      */
-    TANK(
-        displayName = "The Tank",
-        assetName = "boss_idle",
+    EXECUTIONER(
+        displayName = "The Executioner",
+        assetName = "boss_executioner",
         baseHealth = 800,
         damage = 40f,
         moveSpeed = 35f,
         xpReward = 120,
         colliderRadius = 40f,
-        behavior = AIBehavior.BOSS_TANK,
-        frameWidth = 192,
-        frameHeight = 144,
-        frameCount = 5,
+        behavior = AIBehavior.BOSS_EXECUTIONER,
+        frameWidth = 72,
+        frameHeight = 100,
+        frameCount = 6,
         animationFps = 6f,
-        scale = 1.2f,
-        accentColor = 0xFFDD8833,  // Amber / rust
+        scale = 2.5f,              // Boss size scalar
+        accentColor = 0xFFAA2222,  // Blood red
         multiHitResistance = 0.60f, // 60% reduced — heavily armored
-        preferredRange = 300f       // Prefers distance for rock throws
+        preferredRange = 150f       // Closer than tank, throwing axes are shorter range
     ),
 
     /**
-     * Abomination — A multi-armed horror that regenerates.
-     * Attacks: Multi-Arm Swipe (wide melee arc), Regen (passive heal), Enrage (below 30% HP)
+     * The Behemoth — A gargantuan mutated brute, replacing the Amalgam.
+     * Attacks: Fleshy Sweep (wide melee arc), Bone Splinters (ground spikes), Mutate (passive regen + enrage)
      * Final boss — highest HP & damage, regenerates, enrages at low HP.
      */
-    ABOMINATION(
-        displayName = "Abomination",
-        assetName = "boss_abomination",
+    FLESH_AMALGAM(
+        displayName = "The Behemoth",
+        assetName = "boss_amalgam", // Keep the same asset key to overwrite without huge refactors
         baseHealth = 1200,
         damage = 50f,
         moveSpeed = 30f,
         xpReward = 180,
-        colliderRadius = 44f,
-        behavior = AIBehavior.BOSS_ABOMINATION,
-        frameWidth = 80,
-        frameHeight = 160,
+        colliderRadius = 40f,
+        behavior = AIBehavior.BOSS_AMALGAM,
+        frameWidth = 102, // 612 / 6 = 102
+        frameHeight = 110,
         frameCount = 6,
         animationFps = 6f,
-        scale = 1.2f,              // Multi-tentacled horror
-        accentColor = 0xFFCC22FF,  // Necrotic purple
-        multiHitResistance = 0.50f, // 50% reduced damage from multi-hit weapons
-        preferredRange = 220f       // Mix of melee and ranged
+        scale = 2.5f,              // Massive hulking brute
+        accentColor = 0xFF44AA33,  // Mutated green
+        multiHitResistance = 0.50f,
+        preferredRange = 220f
     );
 
     /**

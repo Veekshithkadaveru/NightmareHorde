@@ -13,7 +13,7 @@ enum class AIBehavior {
     FLEE,
 
     // Boss behaviors — each boss cycles through attack phases
-    BOSS_TANK,        // The Tank: ground slam, rock throw, charge
-    BOSS_HIVE_QUEEN,  // Hive Queen: spawn minions, acid spray, burrow
-    BOSS_ABOMINATION  // Abomination: multi-arm swipe, regen, enrage
+    BOSS_EXECUTIONER, // Executioner: axe sweep, throwing axes, leaping strike
+    BOSS_WIDOWMAKER,  // Widowmaker: spawn spiders, web throw, drop from ceiling
+    BOSS_AMALGAM      // Flesh Amalgam: bone splinters, flesh sweep, rapidly mutates
 }

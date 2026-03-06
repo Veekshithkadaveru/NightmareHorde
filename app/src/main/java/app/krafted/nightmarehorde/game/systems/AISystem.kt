@@ -92,7 +92,8 @@ class AISystem @Inject constructor() : GameSystem(priority = 18) {
                 AIBehavior.RANGED -> updateRangedBehavior(entity, transform, velocity, stats, playerTransform, ai, deltaTime)
                 AIBehavior.BUFF -> updateBuffBehavior(transform, velocity, stats, playerTransform, ai, entities, deltaTime)
                 AIBehavior.CHARGE -> updateChargeBehavior(transform, velocity, stats, playerTransform, ai, deltaTime)
-                else -> { /* IDLE or FLEE */ }
+                AIBehavior.FLEE -> updateFleeBehavior(transform, velocity, stats, playerTransform, ai)
+                else -> { /* IDLE */ }
             }
         }
     }
@@ -387,6 +388,34 @@ class AISystem @Inject constructor() : GameSystem(priority = 18) {
                 ai.chargeTargetX = targetTransform.x
                 ai.chargeTargetY = targetTransform.y
             }
+        }
+    }
+
+    private fun updateFleeBehavior(
+        transform: TransformComponent,
+        velocity: VelocityComponent,
+        stats: StatsComponent,
+        targetTransform: TransformComponent,
+        ai: AIComponent
+    ) {
+        val dx = targetTransform.x - transform.x
+        val dy = targetTransform.y - transform.y
+        val distance = sqrt(dx * dx + dy * dy)
+
+        // If the player gets too close, run away!
+        if (distance < ai.range && distance > 0.1f) {
+            val dirX = dx / distance
+            val dirY = dy / distance
+
+            val speed = stats.moveSpeed * nightSpeedMultiplier
+            // Move in the OPPOSITE direction of the player
+            velocity.vx = -dirX * speed
+            velocity.vy = -dirY * speed
+        } else {
+            // Otherwise, slowly wander randomly or walk in place so animation plays
+            val randomDir = if (System.currentTimeMillis() / 2000 % 2 == 0L) 1f else -1f
+            velocity.vx = randomDir * 5f // Barely moving, but enough to trigger animation flip/play
+            velocity.vy = 0f
         }
     }
 }
