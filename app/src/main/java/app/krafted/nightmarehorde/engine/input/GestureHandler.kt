@@ -1,6 +1,5 @@
 package app.krafted.nightmarehorde.engine.input
 
-import android.util.Log
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -42,7 +41,6 @@ class GestureHandler(
     private val scope: CoroutineScope
 ) {
     companion object {
-        private const val TAG = "GestureHandler"
     }
     
     private var lastTapTime: Long = 0L
@@ -60,8 +58,6 @@ class GestureHandler(
         val currentTime = System.currentTimeMillis()
         val timeSinceLastTap = currentTime - lastTapTime
         val positionDelta = (position - lastTapPosition).getDistance()
-        
-        Log.v(TAG, "Tap detected at ($position), time since last: ${timeSinceLastTap}ms")
         
         if (timeSinceLastTap < GestureConfig.DOUBLE_TAP_TIMEOUT_MS && 
             positionDelta < GestureConfig.TAP_SLOP_PX * 2) {

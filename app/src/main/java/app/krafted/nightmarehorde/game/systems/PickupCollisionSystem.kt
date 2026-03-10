@@ -1,6 +1,5 @@
 package app.krafted.nightmarehorde.game.systems
 
-import android.util.Log
 import app.krafted.nightmarehorde.engine.core.Entity
 import app.krafted.nightmarehorde.engine.core.GameLoop
 import app.krafted.nightmarehorde.engine.core.GameSystem
@@ -87,7 +86,6 @@ class PickupCollisionSystem(
             val targetType = ammoComp.weaponType ?: inventory.activeWeaponType
             if (inventory.hasWeapon(targetType)) {
                 inventory.addAmmo(targetType, ammoComp.amount, stats?.ammoCapacityMultiplier ?: 1f)
-                Log.d("PickupCollisionSystem", "Picked up ${ammoComp.amount} ammo for $targetType")
                 gameLoop.removeEntity(pickup)
             }
             return
@@ -99,7 +97,6 @@ class PickupCollisionSystem(
             val health = player.getComponent(HealthComponent::class) ?: return
             if (health.currentHealth < health.maxHealth) {
                 health.heal(healthPickup.healAmount)
-                Log.d("PickupCollisionSystem", "Healed ${healthPickup.healAmount} HP")
                 gameLoop.removeEntity(pickup)
             } else {
                 // Player at full health — skip this pickup for a while

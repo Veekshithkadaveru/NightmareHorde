@@ -179,23 +179,6 @@ fun ShopScreen(
             )
         }
 
-        // Debug: +500 supplies button — bottom right
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(24.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .background(Color(0xFF1A1A1A))
-                .border(1.dp, Color(0xFF444444), RoundedCornerShape(6.dp))
-                .clickable { supplies += 500 }
-                .padding(horizontal = 12.dp, vertical = 8.dp)
-        ) {
-            Text(
-                text = "+500",
-                fontSize = 12.sp,
-                color = Color(0xFF666666)
-            )
-        }
     }
 }
 

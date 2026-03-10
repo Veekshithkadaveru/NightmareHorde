@@ -980,7 +980,6 @@ class BossSystem : GameSystem(priority = 19) {
         }
     }
 
-    // TODO: Phase D — extend AoE to also damage turret entities within radius
     private fun applyAoeDamage(
         center: TransformComponent,
         damage: Float,

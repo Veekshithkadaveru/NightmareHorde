@@ -1,6 +1,5 @@
 package app.krafted.nightmarehorde.game.systems
 
-import android.util.Log
 import app.krafted.nightmarehorde.engine.core.Entity
 import app.krafted.nightmarehorde.engine.core.GameLoop
 import app.krafted.nightmarehorde.engine.core.components.DroneComponent
@@ -88,7 +87,6 @@ class DroneManager(
         recalculateFormation()
 
         _droneUnlockNotification.value = droneType
-        Log.d("DroneManager", "Granted ${droneType.displayName} (slot $slotIndex)")
         return true
     }
 
@@ -104,7 +102,6 @@ class DroneManager(
                 drone.level++
                 drone.maxFuel = droneType.maxFuel(drone.level)
                 drone.fuel = drone.maxFuel // Full refuel on upgrade
-                Log.d("DroneManager", "Upgraded ${droneType.displayName} to Lv${drone.level}")
                 return true
             }
         }
@@ -141,7 +138,6 @@ class DroneManager(
         if (drone.isPoweredDown && drone.fuel > 0f) {
             drone.isPoweredDown = false
             drone.graceTimer = 0f
-            Log.d("DroneManager", "${drone.droneType.displayName} reactivated!")
         }
     }
 

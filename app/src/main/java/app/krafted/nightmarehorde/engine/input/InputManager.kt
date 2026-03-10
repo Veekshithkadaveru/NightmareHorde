@@ -1,6 +1,5 @@
 package app.krafted.nightmarehorde.engine.input
 
-import android.util.Log
 import app.krafted.nightmarehorde.engine.core.Vector2
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,7 +33,6 @@ sealed class InputEvent {
 class InputManager @Inject constructor() {
     
     companion object {
-        private const val TAG = "InputManager"
     }
     
     // Movement direction from joystick (-1 to 1 on each axis)
@@ -86,7 +84,6 @@ class InputManager @Inject constructor() {
      * @param position Screen position where tap occurred
      */
     suspend fun emitTap(position: Vector2) {
-        Log.d(TAG, "Tap at (${position.x}, ${position.y})")
         _tapEvents.emit(position)
         _gestureEvents.emit(InputEvent.Tap(position))
     }
@@ -98,7 +95,6 @@ class InputManager @Inject constructor() {
      * @param position Screen position where double-tap occurred
      */
     suspend fun emitDoubleTap(position: Vector2) {
-        Log.d(TAG, "Double-tap at (${position.x}, ${position.y})")
         _doubleTapEvents.emit(position)
         _gestureEvents.emit(InputEvent.DoubleTap(position))
     }
@@ -108,7 +104,6 @@ class InputManager @Inject constructor() {
      */
     fun reset() {
         _movementDirection.value = Vector2.ZERO
-        Log.d(TAG, "Input state reset")
     }
 }
 

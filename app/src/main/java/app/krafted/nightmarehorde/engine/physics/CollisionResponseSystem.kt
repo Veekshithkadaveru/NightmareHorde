@@ -1,6 +1,5 @@
 package app.krafted.nightmarehorde.engine.physics
 
-import android.util.Log
 import app.krafted.nightmarehorde.engine.core.Entity
 import app.krafted.nightmarehorde.engine.core.GameSystem
 import app.krafted.nightmarehorde.engine.core.components.ColliderComponent

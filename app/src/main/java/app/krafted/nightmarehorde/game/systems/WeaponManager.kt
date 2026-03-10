@@ -1,6 +1,5 @@
 package app.krafted.nightmarehorde.game.systems
 
-import android.util.Log
 import app.krafted.nightmarehorde.engine.core.Entity
 import app.krafted.nightmarehorde.engine.core.components.WeaponComponent
 import app.krafted.nightmarehorde.engine.core.components.WeaponInventoryComponent
@@ -73,7 +72,6 @@ class WeaponManager {
                 _weaponUnlockNotification.value = weaponType
                 _unlockedWeapons.value = inventory.getUnlockedTypes()
 
-                Log.d("WeaponManager", "Weapon unlocked: ${weapon.name} at $kills kills!")
             }
         }
     }
@@ -111,7 +109,6 @@ class WeaponManager {
      * Called when a weapon runs out of ammo — falls back to Pistol.
      */
     fun onAmmoEmpty(emptyWeaponType: WeaponType) {
-        Log.d("WeaponManager", "Ammo empty for $emptyWeaponType, switching to Pistol")
         _activeWeaponType.value = WeaponType.PISTOL
         _currentWeaponName.value = "Pistol"
         _currentAmmo.value = -1

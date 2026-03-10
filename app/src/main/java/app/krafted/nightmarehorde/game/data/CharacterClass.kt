@@ -43,7 +43,7 @@ enum class CharacterClass(
         startingWeaponDisplayName = "Assault Rifle",
         passiveName = "+20% Ammo",
         passiveDescription = "Military training grants 20% more ammo capacity for all weapons.",
-        unlocksAtSupplies = 0,    // TODO: restore to 500 after testing
+        unlocksAtSupplies = 500,
         unlocksAtRescues = 0
     ),
 
@@ -56,8 +56,8 @@ enum class CharacterClass(
         startingWeaponDisplayName = "Dual Pistols",
         passiveName = "Trigger Happy",
         passiveDescription = "+50% fire rate for all weapons. Glass cannon supreme.",
-        unlocksAtSupplies = 0,    // TODO: restore to 0 supplies, 50 rescues after testing
-        unlocksAtRescues = 0      // TODO: restore to 50 after testing
+        unlocksAtSupplies = 0,
+        unlocksAtRescues = 50
     ),
 
     SPACE_MARINE(

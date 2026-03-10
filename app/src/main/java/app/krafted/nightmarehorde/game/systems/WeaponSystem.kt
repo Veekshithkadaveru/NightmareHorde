@@ -65,8 +65,6 @@ class WeaponSystem(
     var onAmmoEmpty: ((WeaponType) -> Unit)? = null
 
     companion object {
-        const val DEBUG_INFINITE_AMMO = false
-
         // Flame particle colors — random pick for organic fire look
         private val FLAME_COLORS = listOf(
             Color(0xFFFF4500),  // OrangeRed
@@ -101,7 +99,7 @@ class WeaponSystem(
         if (!weapon.infiniteAmmo) {
             if (inventory != null) {
                 if (!inventory.consumeAmmo(weapon.type)) return
-            } else if (!DEBUG_INFINITE_AMMO) {
+            } else {
                 val weaponComp = owner.getComponent(WeaponComponent::class) ?: return
                 if (weaponComp.currentAmmo <= 0) return
                 weaponComp.currentAmmo--

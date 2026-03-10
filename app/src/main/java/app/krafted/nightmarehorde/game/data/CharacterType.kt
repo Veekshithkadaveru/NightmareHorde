@@ -27,8 +27,8 @@ enum class CharacterType(
         frameHeight = 32,
         idleFrameCount = 6,
         runFrameCount = 6,
-        scale = 3f,
-        colliderRadius = 10f
+        scale = 3.7f,
+        colliderRadius = 15f
     ),
 
     TERRIBLE_KNIGHT(
@@ -39,80 +39,8 @@ enum class CharacterType(
         frameHeight = 96,
         idleFrameCount = 4,
         runFrameCount = 12,
-        scale = 1.5f,
-        colliderRadius = 20f
-    ),
-
-    WEREWOLF(
-        displayName = "WereWolf",
-        idleTextureKey = "werewolf_idle_sheet",
-        runTextureKey = "werewolf_run_sheet",
-        frameWidth = 96,
-        frameHeight = 76,
-        idleFrameCount = 5,
-        runFrameCount = 6,
-        scale = 1.8f,
-        colliderRadius = 18f
-    ),
-
-    NIGHTMARE(
-        displayName = "Nightmare",
-        idleTextureKey = "nightmare_idle_sheet",
-        runTextureKey = "nightmare_run_sheet",
-        frameWidth = 96,
-        frameHeight = 96,
-        idleFrameCount = 7,
-        runFrameCount = 5,
-        scale = 1.5f,
-        colliderRadius = 20f
-    ),
-
-    HELL_HOUND(
-        displayName = "Hell Hound",
-        idleTextureKey = "hellhound_idle_sheet",
-        runTextureKey = "hellhound_run_sheet",
-        frameWidth = 64,
-        frameHeight = 48,
-        idleFrameCount = 11,
-        runFrameCount = 5,
-        scale = 2.5f,
-        colliderRadius = 14f
-    ),
-
-    GHOST(
-        displayName = "Ghost",
-        idleTextureKey = "ghost_idle_sheet",
-        runTextureKey = "ghost_run_sheet",
-        frameWidth = 64,
-        frameHeight = 80,
-        idleFrameCount = 7,
-        runFrameCount = 4,
-        scale = 2f,
-        colliderRadius = 16f
-    ),
-
-    OGRE(
-        displayName = "Ogre",
-        idleTextureKey = "ogre_idle_sheet",
-        runTextureKey = "ogre_run_sheet",
-        frameWidth = 96,
-        frameHeight = 80,
-        idleFrameCount = 6,
-        runFrameCount = 9,
-        scale = 1.5f,
-        colliderRadius = 20f
-    ),
-
-    DEATH(
-        displayName = "Death",
-        idleTextureKey = "death_idle_sheet",
-        runTextureKey = "death_run_sheet",
-        frameWidth = 48,
-        frameHeight = 48,
-        idleFrameCount = 4,
-        runFrameCount = 4,
-        scale = 2.5f,
-        colliderRadius = 12f
+        scale = 1.24f,
+        colliderRadius = 15f
     ),
 
     SOLDIER(
@@ -123,8 +51,8 @@ enum class CharacterType(
         frameHeight = 32,
         idleFrameCount = 6,
         runFrameCount = 6,
-        scale = 3f,
-        colliderRadius = 10f
+        scale = 3.7f,
+        colliderRadius = 15f
     ),
 
     COMMANDO(
@@ -135,8 +63,8 @@ enum class CharacterType(
         frameHeight = 32,
         idleFrameCount = 6,
         runFrameCount = 6,
-        scale = 3f,
-        colliderRadius = 10f
+        scale = 3.7f,
+        colliderRadius = 15f
     ),
 
     SPACE_MARINE(
@@ -147,8 +75,8 @@ enum class CharacterType(
         frameHeight = 48,
         idleFrameCount = 4,
         runFrameCount = 10,
-        scale = 2f,
-        colliderRadius = 16f
+        scale = 2.5f,
+        colliderRadius = 15f
     ),
 
     ENFORCER(
@@ -160,7 +88,7 @@ enum class CharacterType(
         idleFrameCount = 2,
         runFrameCount = 6,
         scale = 2f,
-        colliderRadius = 16f
+        colliderRadius = 15f
     ),
 
     HUNTER(

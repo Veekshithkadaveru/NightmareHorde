@@ -1,6 +1,5 @@
 package app.krafted.nightmarehorde.engine.core
 
-import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -69,8 +68,6 @@ class GameLoop @Inject constructor() {
 
     fun start(scope: CoroutineScope) {
         if (isRunning.getAndSet(true)) return
-        Log.d("GameLoop", "Game Loop Started")
-
         job = scope.launch(Dispatchers.Default) {
             var lastTime = System.nanoTime()
 
@@ -108,7 +105,6 @@ class GameLoop @Inject constructor() {
         if (isRunning.getAndSet(false)) {
             _isPaused.set(false)
             job?.cancel()
-            Log.d("GameLoop", "Game Loop Stopped")
         }
     }
 
@@ -118,7 +114,6 @@ class GameLoop @Inject constructor() {
      */
     fun pause() {
         _isPaused.set(true)
-        Log.d("GameLoop", "Game Loop Paused")
     }
 
     /**
@@ -126,7 +121,6 @@ class GameLoop @Inject constructor() {
      */
     fun resume() {
         _isPaused.set(false)
-        Log.d("GameLoop", "Game Loop Resumed")
     }
 
     val isPaused: Boolean get() = _isPaused.get()

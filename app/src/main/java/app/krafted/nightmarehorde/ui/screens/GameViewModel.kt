@@ -276,11 +276,7 @@ class GameViewModel @Inject constructor(
             "pickup_orb_blue",
             "laser_grid_vfx",
             // Boss assets
-            "boss_idle",
-            "boss_hive_queen",
-            "boss_abomination",
-            "boss_thrust",
-            "boss_bolt",
+            *BossType.entries.map { it.assetName }.toTypedArray(),
             // Drone assets
             *DroneType.entries.map { it.textureKey }.toTypedArray()
         )
@@ -339,7 +335,6 @@ class GameViewModel @Inject constructor(
 
         val playerSystem = PlayerSystem(inputManager, camera).apply {
             onPlayerDeath = {
-                Log.d("GameViewModel", "Player died! Game Over.")
                 // Launch on main thread: game loop runs on Dispatchers.Default,
                 // so we must post state updates to the main thread before stopping.
                 viewModelScope.launch {
@@ -583,10 +578,8 @@ class GameViewModel @Inject constructor(
             }
         }
 
-        // Double-tap events (for turret menu in Phase D)
         doubleTapJob = viewModelScope.launch(crashHandler) {
             inputManager.doubleTapEvents.collect { position ->
-                Log.d("GameViewModel", "Double-tap for turret menu at: $position")
             }
         }
     }
@@ -706,8 +699,6 @@ class GameViewModel @Inject constructor(
 
             // Apply the upgrade
             upgrade.apply(context)
-            Log.d("GameViewModel", "Applied upgrade: ${upgrade.name} Lv${choice.nextLevel}")
-
             // Log upgrade selected
             analytics.logEvent("upgrade_selected", Bundle().apply {
                 putString("upgrade_id", upgrade.id)
@@ -754,8 +745,6 @@ class GameViewModel @Inject constructor(
         val inventory = player.getComponent(WeaponInventoryComponent::class) ?: return
         val evolvedWeapon = EvolvedWeaponFactory.create(recipe)
         inventory.replaceWeapon(recipe.baseWeaponType, evolvedWeapon)
-        Log.d("GameViewModel", "Weapon evolved: ${recipe.displayName}")
-
         // Log weapon evolution
         analytics.logEvent("weapon_evolved", Bundle().apply {
             putString("base_weapon", recipe.baseWeaponType.name)
@@ -775,8 +764,6 @@ class GameViewModel @Inject constructor(
             if (allMet) {
                 synergy.apply(context)
                 activatedSynergies.add(synergy.id)
-                Log.d("GameViewModel", "Synergy activated: ${synergy.name}")
-
                 // Log synergy activation
                 analytics.logEvent("synergy_activated", Bundle().apply {
                     putString("synergy_id", synergy.id)
@@ -911,7 +898,6 @@ class GameViewModel @Inject constructor(
         crashlytics.setCustomKey("active_boss_type", bossType.name)
         crashlytics.log("Boss spawned: type=${bossType.name}, number=$bossNumber")
 
-        Log.d("GameViewModel", "Boss spawned: ${bossType.displayName} (#$bossNumber)")
     }
 
     private fun handleBossDeath(deadEntity: Entity, bossComp: BossComponent) {
@@ -960,7 +946,6 @@ class GameViewModel @Inject constructor(
             spawnBossRewards(transform.x, transform.y)
         }
 
-        Log.d("GameViewModel", "Boss defeated: ${bossComp.bossType.displayName}. Total defeated: $bossesDefeated")
     }
 
     /**
