@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import app.krafted.nightmarehorde.ui.navigation.GameOverStats
 import app.krafted.nightmarehorde.engine.input.GestureHandler
 import app.krafted.nightmarehorde.engine.input.VirtualJoystick
 import app.krafted.nightmarehorde.engine.input.detectGameGestures
@@ -55,6 +56,7 @@ import kotlinx.coroutines.delay
 fun GameScreen(
     characterClass: CharacterClass = CharacterClass.ROOKIE,
     mapType: MapType = MapType.SUBURBS,
+    onGameOver: (GameOverStats) -> Unit = {},
     viewModel: GameViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -70,7 +72,15 @@ fun GameScreen(
     val droneUnlockNotification by viewModel.droneUnlockNotification.collectAsState()
     val xpState by viewModel.xpState.collectAsState()
     val levelUpState by viewModel.levelUpState.collectAsState()
+    val gameOverStats by viewModel.gameOverState.collectAsState()
     val scope = rememberCoroutineScope()
+
+    // Navigate to GameOver screen when player dies
+    LaunchedEffect(gameOverStats) {
+        val stats = gameOverStats ?: return@LaunchedEffect
+        viewModel.resetGameOver()
+        onGameOver(stats)
+    }
 
     var frameTick by remember { mutableIntStateOf(0) }
 

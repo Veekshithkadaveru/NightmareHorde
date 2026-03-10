@@ -35,7 +35,9 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun MainMenuScreen(
-    onPlayClicked: () -> Unit
+    onPlayClicked: () -> Unit,
+    onShopClicked: () -> Unit = {},
+    onSettingsClicked: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -138,19 +140,19 @@ fun MainMenuScreen(
                 MenuButton(
                     text = "UPGRADES",
                     fontFamily = blackOpsOne,
-                    onClick = { Toast.makeText(context, "Coming Soon: Phase F2", Toast.LENGTH_SHORT).show() },
+                    onClick = onShopClicked,
                     modifier = Modifier.weight(1f)
                 )
                 MenuButton(
                     text = "LOADOUT",
                     fontFamily = blackOpsOne,
-                    onClick = { Toast.makeText(context, "Coming Soon: Phase F1", Toast.LENGTH_SHORT).show() },
+                    onClick = { Toast.makeText(context, "Coming Soon: Phase F2", Toast.LENGTH_SHORT).show() },
                     modifier = Modifier.weight(1f)
                 )
                 MenuButton(
                     text = "SETTINGS",
                     fontFamily = blackOpsOne,
-                    onClick = { Toast.makeText(context, "Coming Soon: Phase F1", Toast.LENGTH_SHORT).show() },
+                    onClick = onSettingsClicked,
                     modifier = Modifier.weight(1f)
                 )
             }

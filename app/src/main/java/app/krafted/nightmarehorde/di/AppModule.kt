@@ -1,7 +1,7 @@
 package app.krafted.nightmarehorde.di
 
 import android.content.Context
-import app.krafted.nightmarehorde.NightmareHordeApp
+import android.content.SharedPreferences
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -12,5 +12,11 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
-    // Add global providers here as needed
+
+    @Provides
+    @Singleton
+    fun provideSharedPreferences(
+        @ApplicationContext context: Context
+    ): SharedPreferences =
+        context.getSharedPreferences("nightmare_horde_settings", Context.MODE_PRIVATE)
 }
