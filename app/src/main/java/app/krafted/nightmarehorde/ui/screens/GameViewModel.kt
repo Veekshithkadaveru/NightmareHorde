@@ -76,6 +76,7 @@ import app.krafted.nightmarehorde.game.systems.ZombieAnimationSystem
 import app.krafted.nightmarehorde.game.systems.ZombieDamageSystem
 import app.krafted.nightmarehorde.game.weapons.EvolvedWeaponFactory
 import app.krafted.nightmarehorde.game.weapons.WeaponType
+import app.krafted.nightmarehorde.ui.navigation.GameOverStats
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -126,6 +127,10 @@ class GameViewModel @Inject constructor(
     /** Elapsed game time in seconds */
     private val _gameTime = MutableStateFlow(0f)
     val gameTime: StateFlow<Float> = _gameTime.asStateFlow()
+
+    /** Game-over stats — non-null when the player has died */
+    private val _gameOverState = MutableStateFlow<GameOverStats?>(null)
+    val gameOverState: StateFlow<GameOverStats?> = _gameOverState.asStateFlow()
 
     // Delegate weapon HUD state to WeaponManager
     private val weaponManager = WeaponManager()
@@ -197,6 +202,7 @@ class GameViewModel @Inject constructor(
     private var isGameRunning = false
     private var playerEntity: Entity? = null
     private var currentMapType: MapType? = null
+    private var currentCharacterClass: CharacterClass = CharacterClass.ROOKIE
     private lateinit var lootDropSystem: LootDropSystem
     private lateinit var waveSpawner: WaveSpawner
     private var dayNightCycle: DayNightCycle? = null
@@ -238,6 +244,7 @@ class GameViewModel @Inject constructor(
         _killCount.value = 0
         _gameTime.value = 0f
         currentMapType = mapType
+        currentCharacterClass = characterClass
         weaponManager.reset()
 
         // Log game start to Firebase Analytics
@@ -245,7 +252,7 @@ class GameViewModel @Inject constructor(
             putString("character_class", characterClass.name)
             putString("map_type", mapType.name)
         })
-        
+
         // Add custom keys to Crashlytics to aid in debugging
         crashlytics.setCustomKey("current_map", mapType.name)
         crashlytics.setCustomKey("character_class", characterClass.name)
@@ -333,6 +340,19 @@ class GameViewModel @Inject constructor(
         val playerSystem = PlayerSystem(inputManager, camera).apply {
             onPlayerDeath = {
                 Log.d("GameViewModel", "Player died! Game Over.")
+                // Launch on main thread: game loop runs on Dispatchers.Default,
+                // so we must post state updates to the main thread before stopping.
+                viewModelScope.launch {
+                    val stats = GameOverStats(
+                        survivalTimeSec = if (::waveSpawner.isInitialized) waveSpawner.elapsedGameTime else _gameTime.value,
+                        killCount = _killCount.value,
+                        levelReached = _xpState.value.currentLevel,
+                        bossesDefeated = bossesDefeated,
+                        characterType = currentCharacterClass.characterType
+                    )
+                    _gameOverState.value = stats
+                    stopGame()
+                }
             }
         }
         gameLoop.addSystem(playerSystem)
@@ -715,7 +735,7 @@ class GameViewModel @Inject constructor(
             // Consume the level-up in the XP component
             val xpComp = player.getComponent(XPComponent::class)
             xpComp?.consumeLevelUp()
-            
+
             // Update crashlytics breadcrumb
             xpComp?.let {
                 crashlytics.setCustomKey("current_level", it.currentLevel)
@@ -772,7 +792,7 @@ class GameViewModel @Inject constructor(
     private fun handleEnemyDeath(deadEntity: Entity) {
         _killCount.value++
         val kills = _killCount.value
-        
+
         // Update crashlytics on kills
         crashlytics.setCustomKey("current_kills", kills)
 
@@ -885,7 +905,7 @@ class GameViewModel @Inject constructor(
             putString("boss_type", bossType.name)
             putInt("boss_number", bossNumber)
         })
-        
+
         // Update crashlytics state
         crashlytics.setCustomKey("boss_active", true)
         crashlytics.setCustomKey("active_boss_type", bossType.name)
@@ -986,6 +1006,11 @@ class GameViewModel @Inject constructor(
             WeaponType.FLAMETHROWER -> 40
             else -> 15
         }
+    }
+
+    /** Clears the game-over state so the UI can navigate away cleanly. */
+    fun resetGameOver() {
+        _gameOverState.value = null
     }
 
     private fun updateBossHudState() {

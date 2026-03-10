@@ -10,6 +10,8 @@ sealed class Screen {
     data class MapSelect(val characterClass: CharacterClass) : Screen()
     data class Game(val characterClass: CharacterClass, val mapType: MapType) : Screen()
     data class GameOver(val stats: GameOverStats) : Screen()
+    data object Settings : Screen()
+    data object Shop : Screen()
 }
 
 /** Extension to get the CharacterType from a Game screen for convenience. */
