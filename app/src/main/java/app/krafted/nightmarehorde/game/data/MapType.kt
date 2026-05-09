@@ -67,7 +67,7 @@ enum class MapType(
         backgroundTextureKey = "background_ashen_wastes",
         backgroundColor = 0xFF2A2A2A,
         accentColor = 0xFFDD4444,
-        unlockCost = 0,
+        unlockCost = 750,
         requiredBossKills = 0,
         mapWidth = 8000f,
         mapHeight = 8000f,

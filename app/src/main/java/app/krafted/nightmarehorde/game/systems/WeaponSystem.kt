@@ -122,6 +122,7 @@ class WeaponSystem(
     ) {
         val stats = owner.getComponent(StatsComponent::class)
         val count = weapon.projectileCount + (stats?.projectileCountBonus ?: 0)
+        val damage = weapon.damage * (stats?.damageMultiplier ?: 1f)
         var startAngle = 0f
         var angleStep = 0f
 
@@ -140,7 +141,7 @@ class WeaponSystem(
                 y = transform.y,
                 rotation = finalDirection.angle(),
                 speed = weapon.projectileSpeed,
-                damage = weapon.damage,
+                damage = damage,
                 ownerId = owner.id,
                 lifeTime = weapon.range / weapon.projectileSpeed
             )
@@ -158,6 +159,9 @@ class WeaponSystem(
         transform: TransformComponent,
         direction: Vector2
     ) {
+        val stats = owner.getComponent(StatsComponent::class)
+        val damage = weapon.damage * (stats?.damageMultiplier ?: 1f)
+
         // Random spread within the cone for each flame particle
         val randomSpread = (random.nextFloat() - 0.5f) * weapon.spreadAngle
         val finalDirection = direction.rotate(randomSpread)
@@ -175,7 +179,7 @@ class WeaponSystem(
             y = transform.y + finalDirection.y * 20f,
             rotation = finalDirection.angle(),
             speed = speedVariation,
-            damage = weapon.damage,
+            damage = damage,
             ownerId = owner.id,
             lifeTime = 0.85f,
             penetrating = true,
@@ -200,6 +204,7 @@ class WeaponSystem(
     ) {
         val stats = owner.getComponent(StatsComponent::class)
         val areaMult = stats?.areaMultiplier ?: 1f
+        val damage = weapon.damage * (stats?.damageMultiplier ?: 1f)
         val halfArc = WHIP_ARC_DEGREES / 2f
         val angleStep = WHIP_ARC_DEGREES / (WHIP_SEGMENT_COUNT - 1).coerceAtLeast(1)
         val reachDistance = weapon.range * areaMult
@@ -238,7 +243,7 @@ class WeaponSystem(
                 y = transform.y + segDirection.y * segDistance,
                 rotation = tangentAngle,
                 speed = 0f,                 // Stationary — stays where spawned
-                damage = weapon.damage,
+                damage = damage,
                 ownerId = owner.id,
                 lifeTime = 0.25f,           // Brief flash
                 penetrating = true,         // Hits all enemies in the arc
@@ -270,6 +275,7 @@ class WeaponSystem(
     ) {
         val stats = owner.getComponent(StatsComponent::class)
         val areaMult = stats?.areaMultiplier ?: 1f
+        val damage = weapon.damage * (stats?.damageMultiplier ?: 1f)
         val reachDistance = weapon.range * areaMult
 
         // Spacing between segments along the thrust line
@@ -304,7 +310,7 @@ class WeaponSystem(
                 y = transform.y + direction.y * segDistance,
                 rotation = bladeAngle,
                 speed = 0f,
-                damage = weapon.damage,
+                damage = damage,
                 ownerId = owner.id,
                 lifeTime = 0.3f,
                 penetrating = true,

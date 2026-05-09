@@ -18,8 +18,7 @@ enum class CharacterClass(
     val startingWeaponDisplayName: String,
     val passiveName: String,
     val passiveDescription: String,
-    val unlocksAtSupplies: Int,
-    val unlocksAtRescues: Int
+    val unlockChallenge: UnlockChallenge
 ) {
     ROOKIE(
         displayName = "Rookie",
@@ -30,8 +29,7 @@ enum class CharacterClass(
         startingWeaponDisplayName = "Pistol",
         passiveName = "Balanced",
         passiveDescription = "No special advantages or weaknesses. A solid all-rounder for any situation.",
-        unlocksAtSupplies = 0,
-        unlocksAtRescues = 0
+        unlockChallenge = UnlockChallenge.NONE
     ),
 
     SOLDIER(
@@ -43,8 +41,7 @@ enum class CharacterClass(
         startingWeaponDisplayName = "Assault Rifle",
         passiveName = "+20% Ammo",
         passiveDescription = "Military training grants 20% more ammo capacity for all weapons.",
-        unlocksAtSupplies = 500,
-        unlocksAtRescues = 0
+        unlockChallenge = UnlockChallenge.SURVIVE_5_MINUTES
     ),
 
     COMMANDO(
@@ -56,8 +53,7 @@ enum class CharacterClass(
         startingWeaponDisplayName = "Dual Pistols",
         passiveName = "Trigger Happy",
         passiveDescription = "+50% fire rate for all weapons. Glass cannon supreme.",
-        unlocksAtSupplies = 0,
-        unlocksAtRescues = 50
+        unlockChallenge = UnlockChallenge.KILL_500_ZOMBIES
     ),
 
     SPACE_MARINE(
@@ -69,8 +65,7 @@ enum class CharacterClass(
         startingWeaponDisplayName = "Shotgun",
         passiveName = "Heavy Armor",
         passiveDescription = "+5 armor and 25% damage reduction. Built to endure the horde.",
-        unlocksAtSupplies = 0,
-        unlocksAtRescues = 0
+        unlockChallenge = UnlockChallenge.DEFEAT_3_BOSSES
     ),
 
     ENFORCER(
@@ -82,8 +77,7 @@ enum class CharacterClass(
         startingWeaponDisplayName = "SMG",
         passiveName = "Scavenger",
         passiveDescription = "+30% pickup radius and +25% XP gain. Gear up faster than anyone.",
-        unlocksAtSupplies = 0,
-        unlocksAtRescues = 0
+        unlockChallenge = UnlockChallenge.COMPLETE_10_RUNS
     ),
 
     HUNTER(
@@ -95,8 +89,7 @@ enum class CharacterClass(
         startingWeaponDisplayName = "Pistol",
         passiveName = "Dead Eye",
         passiveDescription = "+40% weapon damage and +25% range. Every shot counts.",
-        unlocksAtSupplies = 0,
-        unlocksAtRescues = 0
+        unlockChallenge = UnlockChallenge.KILL_2000_ZOMBIES
     ),
 
     TERRIBLE_KNIGHT(
@@ -108,8 +101,7 @@ enum class CharacterClass(
         startingWeaponDisplayName = "Broad Sword",
         passiveName = "Undying Fury",
         passiveDescription = "+3 HP regen per second and +30% melee/area damage. A relentless close-combat warrior.",
-        unlocksAtSupplies = 0,
-        unlocksAtRescues = 0
+        unlockChallenge = UnlockChallenge.DEFEAT_10_BOSSES
     );
 
     /** Convert normalized baseSpeed (100 = default 450f) to actual moveSpeed for StatsComponent */
@@ -122,13 +114,8 @@ enum class CharacterClass(
     val speedPercent: Float get() = baseSpeed / 120f
 
     /** Whether this class is unlocked by default (no cost) */
-    val isDefaultUnlocked: Boolean get() = unlocksAtSupplies == 0 && unlocksAtRescues == 0
+    val isDefaultUnlocked: Boolean get() = unlockChallenge == UnlockChallenge.NONE
 
     /** Human-readable unlock requirement string */
-    val unlockRequirement: String
-        get() = when {
-            isDefaultUnlocked -> ""
-            unlocksAtRescues > 0 -> "Rescue $unlocksAtRescues Survivors"
-            else -> "Collect $unlocksAtSupplies Supplies"
-        }
+    val unlockRequirement: String get() = unlockChallenge.displayText
 }

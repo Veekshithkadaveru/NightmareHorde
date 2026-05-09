@@ -2,6 +2,9 @@ package app.krafted.nightmarehorde.data.local
 
 import android.content.SharedPreferences
 import android.util.Log
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -20,11 +23,13 @@ class SaveManager @Inject constructor(
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    var currentSave: SaveData = load()
-        private set
+    private val _saveFlow = MutableStateFlow(load())
+    val saveFlow: StateFlow<SaveData> = _saveFlow.asStateFlow()
+
+    val currentSave: SaveData get() = _saveFlow.value
 
     fun save() {
-        currentSave = currentSave.copy(lastSavedTimestamp = System.currentTimeMillis())
+        _saveFlow.value = currentSave.copy(lastSavedTimestamp = System.currentTimeMillis())
         val serialized = json.encodeToString(SaveData.serializer(), currentSave)
         val encrypted = encryption.encrypt(serialized)
         prefs.edit().putString(KEY_ENCRYPTED_SAVE, encrypted).apply()
@@ -46,6 +51,11 @@ class SaveManager @Inject constructor(
 
     fun reset() {
         prefs.edit().remove(KEY_ENCRYPTED_SAVE).apply()
-        currentSave = SaveData()
+        _saveFlow.value = SaveData()
+    }
+
+    fun update(transform: (SaveData) -> SaveData) {
+        _saveFlow.value = transform(_saveFlow.value)
+        save()
     }
 }

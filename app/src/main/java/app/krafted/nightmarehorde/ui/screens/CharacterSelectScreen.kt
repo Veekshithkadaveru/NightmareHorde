@@ -16,6 +16,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -72,6 +75,7 @@ private fun getIdleSpriteRes(characterClass: CharacterClass): Int {
 
 @Composable
 fun CharacterSelectScreen(
+    isCharacterUnlocked: (CharacterClass) -> Boolean,
     onCharacterSelected: (CharacterClass) -> Unit,
     onBack: () -> Unit
 ) {
@@ -156,7 +160,7 @@ fun CharacterSelectScreen(
                             CharacterCard(
                                 characterClass = charClass,
                                 isSelected = index == selectedIndex,
-                                isLocked = !charClass.isDefaultUnlocked,
+                                isLocked = !isCharacterUnlocked(charClass),
                                 accent = classAccentColors[charClass] ?: Color.Gray,
                                 blackOpsOne = blackOpsOne,
                                 onClick = { selectedIndex = index }
@@ -197,11 +201,11 @@ fun CharacterSelectScreen(
 
                         // Deploy button
                         DeployButton(
-                            isLocked = !selectedClass.isDefaultUnlocked,
+                            isLocked = !isCharacterUnlocked(selectedClass),
                             accent = accent,
                             blackOpsOne = blackOpsOne,
                             onClick = {
-                                if (selectedClass.isDefaultUnlocked) {
+                                if (isCharacterUnlocked(selectedClass)) {
                                     onCharacterSelected(selectedClass)
                                 }
                             }
@@ -212,6 +216,7 @@ fun CharacterSelectScreen(
                 // ─── Right: Character detail panel ────────────────────────
                 CharacterDetailPanel(
                     characterClass = selectedClass,
+                    isLocked = !isCharacterUnlocked(selectedClass),
                     accent = accent,
                     creepster = creepster,
                     blackOpsOne = blackOpsOne,
@@ -252,7 +257,7 @@ private fun CharacterCard(
 
     Column(
         modifier = Modifier
-            .width(100.dp)
+            .size(width = 100.dp, height = 132.dp)
             .clip(RoundedCornerShape(12.dp))
             .then(
                 if (isSelected) Modifier.border(
@@ -281,87 +286,89 @@ private fun CharacterCard(
             modifier = Modifier
                 .size(64.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color.Black.copy(alpha = 0.4f)),
+                .background(Color.Black.copy(alpha = if (isLocked) 0.6f else 0.4f)),
             contentAlignment = Alignment.Center
         ) {
-            if (isLocked) {
-                Text(
-                    text = "\uD83D\uDD12",
-                    fontSize = 28.sp,
-                    modifier = Modifier.alpha(0.6f)
-                )
-            } else {
-                // Decode sprite on background thread to avoid main thread ANR
-                val charType = characterClass.characterType
-                val context = LocalContext.current
-                var firstFrame by remember(characterClass) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
-                LaunchedEffect(characterClass) {
-                    firstFrame = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        val resId = getIdleSpriteRes(characterClass)
-                        val opts = android.graphics.BitmapFactory.Options().apply {
-                            inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
-                        }
-                        val full = android.graphics.BitmapFactory.decodeResource(context.resources, resId, opts)
-                        val frame = android.graphics.Bitmap.createBitmap(
-                            full, 0, 0, charType.frameWidth, charType.frameHeight
-                        )
-                        if (frame !== full) full.recycle()
+            // Decode sprite on background thread to avoid main thread ANR
+            val charType = characterClass.characterType
+            val context = LocalContext.current
+            var firstFrame by remember(characterClass) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+            LaunchedEffect(characterClass) {
+                firstFrame = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val resId = getIdleSpriteRes(characterClass)
+                    val opts = android.graphics.BitmapFactory.Options().apply {
+                        inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
+                    }
+                    val full = android.graphics.BitmapFactory.decodeResource(context.resources, resId, opts)
+                    val frame = android.graphics.Bitmap.createBitmap(
+                        full, 0, 0, charType.frameWidth, charType.frameHeight
+                    )
+                    if (frame !== full) full.recycle()
 
-                        val width = frame.width
-                        val height = frame.height
-                        val pixels = IntArray(width * height)
-                        frame.getPixels(pixels, 0, width, 0, 0, width, height)
+                    val width = frame.width
+                    val height = frame.height
+                    val pixels = IntArray(width * height)
+                    frame.getPixels(pixels, 0, width, 0, 0, width, height)
 
-                        var minX = width
-                        var minY = height
-                        var maxX = -1
-                        var maxY = -1
+                    var minX = width
+                    var minY = height
+                    var maxX = -1
+                    var maxY = -1
 
-                        for (y in 0 until height) {
-                            for (x in 0 until width) {
-                                val alpha = (pixels[y * width + x] ushr 24) and 0xFF
-                                if (alpha > 0) {
-                                    if (x < minX) minX = x
-                                    if (x > maxX) maxX = x
-                                    if (y < minY) minY = y
-                                    if (y > maxY) maxY = y
-                                }
+                    for (y in 0 until height) {
+                        for (x in 0 until width) {
+                            val alpha = (pixels[y * width + x] ushr 24) and 0xFF
+                            if (alpha > 0) {
+                                if (x < minX) minX = x
+                                if (x > maxX) maxX = x
+                                if (y < minY) minY = y
+                                if (y > maxY) maxY = y
                             }
                         }
-
-                        val cropped = if (maxX >= minX && maxY >= minY) {
-                            val cropWidth = maxX - minX + 1
-                            val cropHeight = maxY - minY + 1
-                            android.graphics.Bitmap.createBitmap(frame, minX, minY, cropWidth, cropHeight)
-                        } else {
-                            frame
-                        }
-                        if (cropped !== frame) frame.recycle()
-
-                        cropped.asImageBitmap()
                     }
-                }
-                val loadedFrame = firstFrame
-                if (loadedFrame != null) {
-                    Canvas(modifier = Modifier.fillMaxSize().padding(8.dp)) {
-                        val imgWidth = loadedFrame.width.toFloat()
-                        val imgHeight = loadedFrame.height.toFloat()
 
-                        val scale = minOf(size.width / imgWidth, size.height / imgHeight)
-                        val targetWidth = imgWidth * scale
-                        val targetHeight = imgHeight * scale
-
-                        val xOffset = (size.width - targetWidth) / 2f
-                        val yOffset = (size.height - targetHeight) / 2f
-
-                        drawImage(
-                            image = loadedFrame,
-                            dstOffset = IntOffset(xOffset.toInt(), yOffset.toInt()),
-                            dstSize = IntSize(targetWidth.toInt(), targetHeight.toInt()),
-                            filterQuality = FilterQuality.None
-                        )
+                    val cropped = if (maxX >= minX && maxY >= minY) {
+                        val cropWidth = maxX - minX + 1
+                        val cropHeight = maxY - minY + 1
+                        android.graphics.Bitmap.createBitmap(frame, minX, minY, cropWidth, cropHeight)
+                    } else {
+                        frame
                     }
+                    if (cropped !== frame) frame.recycle()
+
+                    cropped.asImageBitmap()
                 }
+            }
+            val loadedFrame = firstFrame
+            if (loadedFrame != null) {
+                Canvas(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+                    val imgWidth = loadedFrame.width.toFloat()
+                    val imgHeight = loadedFrame.height.toFloat()
+
+                    val scale = minOf(size.width / imgWidth, size.height / imgHeight)
+                    val targetWidth = imgWidth * scale
+                    val targetHeight = imgHeight * scale
+
+                    val xOffset = (size.width - targetWidth) / 2f
+                    val yOffset = (size.height - targetHeight) / 2f
+
+                    drawImage(
+                        image = loadedFrame,
+                        dstOffset = IntOffset(xOffset.toInt(), yOffset.toInt()),
+                        dstSize = IntSize(targetWidth.toInt(), targetHeight.toInt()),
+                        filterQuality = FilterQuality.None,
+                        colorFilter = if (isLocked) androidx.compose.ui.graphics.ColorFilter.tint(Color.DarkGray) else null
+                    )
+                }
+            }
+            
+            if (isLocked) {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = "Locked",
+                    tint = Color.White.copy(alpha = 0.8f),
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
 
@@ -399,13 +406,12 @@ private fun CharacterCard(
 @Composable
 private fun CharacterDetailPanel(
     characterClass: CharacterClass,
+    isLocked: Boolean,
     accent: Color,
     creepster: FontFamily,
     blackOpsOne: FontFamily,
     modifier: Modifier = Modifier
 ) {
-    // Animate detail changes
-    val isLocked = !characterClass.isDefaultUnlocked
 
     Column(
         modifier = modifier
@@ -531,13 +537,24 @@ private fun CharacterDetailPanel(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "\uD83D\uDD12 LOCKED",
-                        fontFamily = blackOpsOne,
-                        fontSize = 18.sp,
-                        letterSpacing = 3.sp,
-                        color = Color(0xFFFF6666)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Locked",
+                            tint = Color(0xFFFF6666),
+                            modifier = Modifier.size(20.dp).padding(end = 6.dp)
+                        )
+                        Text(
+                            text = "LOCKED",
+                            fontFamily = blackOpsOne,
+                            fontSize = 18.sp,
+                            letterSpacing = 3.sp,
+                            color = Color(0xFFFF6666)
+                        )
+                    }
                     Text(
                         text = characterClass.unlockRequirement,
                         fontFamily = blackOpsOne,

@@ -13,11 +13,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,14 +56,12 @@ fun GameOverScreen(
     val darkBg = Color(0xFF0A0A0A)
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Dark near-black base background
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(darkBg)
         )
 
-        // Red vignette overlay — radial-style using vertical gradient stacked with a solid border fade
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -77,49 +76,80 @@ fun GameOverScreen(
                 )
         )
 
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 40.dp, vertical = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceEvenly
+                .padding(horizontal = 32.dp, vertical = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // ── "YOU DIED" title ──────────────────────────────────────────
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "YOU DIED",
-                    style = TextStyle(
-                        fontSize = 80.sp,
-                        fontFamily = creepster,
-                        fontWeight = FontWeight.Normal,
-                        letterSpacing = 10.sp,
-                        color = accentRed,
-                        shadow = Shadow(
-                            color = Color.Black,
-                            offset = Offset(6f, 10f),
-                            blurRadius = 16f
-                        )
-                    ),
-                    textAlign = TextAlign.Center
-                )
+            // ── Left column: Title + Buttons ─────────────────────────────
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "YOU DIED",
+                        style = TextStyle(
+                            fontSize = 64.sp,
+                            fontFamily = creepster,
+                            fontWeight = FontWeight.Normal,
+                            letterSpacing = 8.sp,
+                            color = accentRed,
+                            shadow = Shadow(
+                                color = Color.Black,
+                                offset = Offset(5f, 8f),
+                                blurRadius = 14f
+                            )
+                        ),
+                        textAlign = TextAlign.Center
+                    )
 
-                Text(
-                    text = "NIGHTMARE HORDE",
-                    style = TextStyle(
-                        fontSize = 18.sp,
+                    Text(
+                        text = "NIGHTMARE HORDE",
+                        style = TextStyle(
+                            fontSize = 14.sp,
+                            fontFamily = blackOpsOne,
+                            letterSpacing = 5.sp,
+                            color = Color.White.copy(alpha = 0.5f)
+                        ),
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    GameOverPulseButton(
+                        text = "PLAY AGAIN",
+                        isPrimary = true,
                         fontFamily = blackOpsOne,
-                        letterSpacing = 6.sp,
-                        color = Color.White.copy(alpha = 0.5f)
-                    ),
-                    textAlign = TextAlign.Center
-                )
+                        modifier = Modifier.weight(1f),
+                        onClick = onPlayAgain
+                    )
+
+                    GameOverMenuButton(
+                        text = "MAIN MENU",
+                        fontFamily = blackOpsOne,
+                        modifier = Modifier.weight(1f),
+                        onClick = onMainMenu
+                    )
+                }
             }
 
-            // ── Stats panel ───────────────────────────────────────────────
+            // ── Right column: Stats panel ────────────────────────────────
             Box(
                 modifier = Modifier
-                    .widthIn(max = 480.dp)
-                    .fillMaxWidth()
+                    .weight(1f)
+                    .fillMaxHeight()
                     .clip(CutCornerShape(12.dp))
                     .background(
                         Brush.verticalGradient(
@@ -134,13 +164,15 @@ fun GameOverScreen(
                         color = accentRed.copy(alpha = 0.6f),
                         shape = CutCornerShape(12.dp)
                     )
-                    .padding(horizontal = 24.dp, vertical = 16.dp)
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                contentAlignment = Alignment.Center
             ) {
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     StatRow(
-                        label = "SURVIVOR",
+                        label = "CLASS",
                         value = stats.characterType.name.replace('_', ' '),
                         labelFamily = blackOpsOne,
                         valueColor = goldAccent
@@ -169,29 +201,13 @@ fun GameOverScreen(
                         labelFamily = blackOpsOne,
                         valueColor = if (stats.bossesDefeated > 0) goldAccent else Color.White.copy(alpha = 0.6f)
                     )
+                    StatRow(
+                        label = "SUPPLIES EARNED",
+                        value = "+${stats.suppliesEarned}",
+                        labelFamily = blackOpsOne,
+                        valueColor = goldAccent
+                    )
                 }
-            }
-
-            // ── Buttons ───────────────────────────────────────────────────
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                GameOverPulseButton(
-                    text = "PLAY AGAIN",
-                    isPrimary = true,
-                    fontFamily = blackOpsOne,
-                    modifier = Modifier.weight(1f),
-                    onClick = onPlayAgain
-                )
-
-                GameOverMenuButton(
-                    text = "MAIN MENU",
-                    fontFamily = blackOpsOne,
-                    modifier = Modifier.weight(1f),
-                    onClick = onMainMenu
-                )
             }
         }
     }
@@ -215,8 +231,8 @@ private fun StatRow(
             text = label,
             style = TextStyle(
                 fontFamily = labelFamily,
-                fontSize = 14.sp,
-                letterSpacing = 3.sp,
+                fontSize = 12.sp,
+                letterSpacing = 2.sp,
                 color = Color.White.copy(alpha = 0.7f)
             )
         )
@@ -224,8 +240,8 @@ private fun StatRow(
             text = value,
             style = TextStyle(
                 fontFamily = labelFamily,
-                fontSize = 16.sp,
-                letterSpacing = 2.sp,
+                fontSize = 14.sp,
+                letterSpacing = 1.5.sp,
                 color = valueColor,
                 shadow = Shadow(
                     color = Color.Black,
@@ -259,7 +275,7 @@ private fun GameOverPulseButton(
     Box(
         modifier = modifier
             .scale(if (isPrimary) pulseScale else 1f)
-            .height(64.dp)
+            .height(56.dp)
             .clip(CutCornerShape(12.dp))
             .background(
                 Brush.horizontalGradient(
@@ -283,8 +299,8 @@ private fun GameOverPulseButton(
             color = Color.White,
             fontFamily = fontFamily,
             fontWeight = FontWeight.Normal,
-            fontSize = if (isPrimary) 26.sp else 20.sp,
-            letterSpacing = 6.sp,
+            fontSize = if (isPrimary) 20.sp else 16.sp,
+            letterSpacing = 4.sp,
             style = TextStyle(
                 shadow = Shadow(
                     color = Color.Black,
@@ -305,7 +321,7 @@ private fun GameOverMenuButton(
 ) {
     Box(
         modifier = modifier
-            .height(64.dp)
+            .height(56.dp)
             .clip(CutCornerShape(8.dp))
             .background(
                 Brush.verticalGradient(
@@ -326,8 +342,8 @@ private fun GameOverMenuButton(
             color = Color.White.copy(alpha = 0.95f),
             fontFamily = fontFamily,
             fontWeight = FontWeight.Normal,
-            fontSize = 18.sp,
-            letterSpacing = 4.sp
+            fontSize = 16.sp,
+            letterSpacing = 3.sp
         )
     }
 }

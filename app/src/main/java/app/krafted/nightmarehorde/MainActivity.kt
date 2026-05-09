@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import app.krafted.nightmarehorde.data.local.SettingsRepository
+import app.krafted.nightmarehorde.game.data.MapUnlockManager
+import app.krafted.nightmarehorde.game.systems.SuppliesManager
 import app.krafted.nightmarehorde.ui.navigation.NightmareHordeNavHost
 import app.krafted.nightmarehorde.ui.theme.NightmareHordeTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -17,6 +19,8 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var settingsRepository: SettingsRepository
+    @Inject lateinit var mapUnlockManager: MapUnlockManager
+    @Inject lateinit var suppliesManager: SuppliesManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,7 +29,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             NightmareHordeTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    NightmareHordeNavHost(settingsRepository = settingsRepository)
+                    NightmareHordeNavHost(
+                        settingsRepository = settingsRepository,
+                        mapUnlockManager = mapUnlockManager,
+                        suppliesManager = suppliesManager,
+                    )
                 }
             }
         }

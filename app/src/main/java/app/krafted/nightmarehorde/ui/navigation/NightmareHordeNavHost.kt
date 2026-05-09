@@ -3,6 +3,7 @@ package app.krafted.nightmarehorde.ui.navigation
 import android.os.Bundle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -11,6 +12,8 @@ import androidx.compose.ui.platform.LocalContext
 import com.google.firebase.analytics.FirebaseAnalytics
 import app.krafted.nightmarehorde.data.local.SettingsRepository
 import app.krafted.nightmarehorde.game.data.CharacterClass
+import app.krafted.nightmarehorde.game.data.MapUnlockManager
+import app.krafted.nightmarehorde.game.systems.SuppliesManager
 import app.krafted.nightmarehorde.ui.screens.CharacterSelectScreen
 import app.krafted.nightmarehorde.ui.screens.GameOverScreen
 import app.krafted.nightmarehorde.ui.screens.GameScreen
@@ -20,7 +23,11 @@ import app.krafted.nightmarehorde.ui.screens.SettingsScreen
 import app.krafted.nightmarehorde.ui.screens.ShopScreen
 
 @Composable
-fun NightmareHordeNavHost(settingsRepository: SettingsRepository) {
+fun NightmareHordeNavHost(
+    settingsRepository: SettingsRepository,
+    mapUnlockManager: MapUnlockManager,
+    suppliesManager: SuppliesManager,
+) {
     val context = LocalContext.current
     val analytics = remember { FirebaseAnalytics.getInstance(context) }
     
@@ -50,20 +57,28 @@ fun NightmareHordeNavHost(settingsRepository: SettingsRepository) {
             onSettingsClicked = { currentScreen = Screen.Settings }
         )
 
-        is Screen.CharacterSelect -> CharacterSelectScreen(
-            onCharacterSelected = { characterClass ->
-                currentScreen = Screen.MapSelect(characterClass)
-            },
-            onBack = { currentScreen = Screen.MainMenu }
-        )
+        is Screen.CharacterSelect -> {
+            val stats by suppliesManager.statsFlow.collectAsState()
+            CharacterSelectScreen(
+                isCharacterUnlocked = { it.unlockChallenge.isCompleted(stats) },
+                onCharacterSelected = { characterClass ->
+                    currentScreen = Screen.MapSelect(characterClass)
+                },
+                onBack = { currentScreen = Screen.MainMenu }
+            )
+        }
 
-        is Screen.MapSelect -> MapSelectScreen(
-            characterClass = screen.characterClass,
-            onMapSelected = { mapType ->
-                currentScreen = Screen.Game(screen.characterClass, mapType)
-            },
-            onBack = { currentScreen = Screen.CharacterSelect }
-        )
+        is Screen.MapSelect -> {
+            val unlockState by mapUnlockManager.unlockState.collectAsState()
+            MapSelectScreen(
+                characterClass = screen.characterClass,
+                isMapUnlocked = { mapUnlockManager.isUnlocked(it, unlockState) },
+                onMapSelected = { mapType ->
+                    currentScreen = Screen.Game(screen.characterClass, mapType)
+                },
+                onBack = { currentScreen = Screen.CharacterSelect }
+            )
+        }
 
         is Screen.Game -> GameScreen(
             characterClass = screen.characterClass,
@@ -83,6 +98,7 @@ fun NightmareHordeNavHost(settingsRepository: SettingsRepository) {
         )
 
         is Screen.Shop -> ShopScreen(
+            suppliesManager = suppliesManager,
             onBack = { currentScreen = Screen.MainMenu }
         )
     }

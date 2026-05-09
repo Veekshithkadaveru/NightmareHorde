@@ -13,6 +13,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,11 +40,11 @@ import androidx.compose.foundation.Image
 import app.krafted.nightmarehorde.R
 import app.krafted.nightmarehorde.game.data.CharacterClass
 import app.krafted.nightmarehorde.game.data.MapType
-import app.krafted.nightmarehorde.game.data.MapUnlockManager
 
 @Composable
 fun MapSelectScreen(
     characterClass: CharacterClass,
+    isMapUnlocked: (MapType) -> Boolean,
     onMapSelected: (MapType) -> Unit,
     onBack: () -> Unit
 ) {
@@ -152,7 +155,7 @@ fun MapSelectScreen(
                             MapCard(
                                 mapType = mapType,
                                 isSelected = index == selectedIndex,
-                                isUnlocked = MapUnlockManager.isUnlocked(mapType),
+                                isUnlocked = isMapUnlocked(mapType),
                                 blackOpsOne = blackOpsOne,
                                 onClick = { selectedIndex = index }
                             )
@@ -192,11 +195,11 @@ fun MapSelectScreen(
 
                         // Deploy button
                         MapDeployButton(
-                            isLocked = !MapUnlockManager.isUnlocked(selectedMap),
+                            isLocked = !isMapUnlocked(selectedMap),
                             accent = accent,
                             blackOpsOne = blackOpsOne,
                             onClick = {
-                                if (MapUnlockManager.isUnlocked(selectedMap)) {
+                                if (isMapUnlocked(selectedMap)) {
                                     onMapSelected(selectedMap)
                                 }
                             }
@@ -207,7 +210,7 @@ fun MapSelectScreen(
                 // ─── Right: Map detail panel ──────────────────────────────
                 MapDetailPanel(
                     mapType = selectedMap,
-                    isUnlocked = MapUnlockManager.isUnlocked(selectedMap),
+                    isUnlocked = isMapUnlocked(selectedMap),
                     accent = accent,
                     creepster = creepster,
                     blackOpsOne = blackOpsOne,
@@ -247,7 +250,7 @@ private fun MapCard(
 
     Column(
         modifier = Modifier
-            .width(110.dp)
+            .size(width = 110.dp, height = 132.dp)
             .clip(RoundedCornerShape(12.dp))
             .then(
                 if (isSelected) Modifier.border(
@@ -279,24 +282,26 @@ private fun MapCard(
                 .background(
                     Brush.radialGradient(
                         colors = listOf(
-                            Color(mapType.backgroundColor).copy(alpha = 0.8f),
+                            Color(mapType.backgroundColor).copy(alpha = if (isUnlocked) 0.8f else 0.3f),
                             Color.Black.copy(alpha = 0.9f)
                         )
                     )
                 ),
             contentAlignment = Alignment.Center
         ) {
+            // Map icon based on type
+            Text(
+                text = mapType.mapIcon,
+                fontSize = 28.sp,
+                modifier = Modifier.alpha(if (isUnlocked) 1f else 0.3f)
+            )
+
             if (!isUnlocked) {
-                Text(
-                    text = "\uD83D\uDD12",
-                    fontSize = 28.sp,
-                    modifier = Modifier.alpha(0.7f)
-                )
-            } else {
-                // Map icon based on type
-                Text(
-                    text = mapType.mapIcon,
-                    fontSize = 28.sp
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = "Locked",
+                    tint = Color.White.copy(alpha = 0.8f),
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
@@ -451,13 +456,24 @@ private fun MapDetailPanel(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "\uD83D\uDD12 LOCKED",
-                        fontFamily = blackOpsOne,
-                        fontSize = 18.sp,
-                        letterSpacing = 3.sp,
-                        color = Color(0xFFFF6666)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Locked",
+                            tint = Color(0xFFFF6666),
+                            modifier = Modifier.size(20.dp).padding(end = 6.dp)
+                        )
+                        Text(
+                            text = "LOCKED",
+                            fontFamily = blackOpsOne,
+                            fontSize = 18.sp,
+                            letterSpacing = 3.sp,
+                            color = Color(0xFFFF6666)
+                        )
+                    }
                     Text(
                         text = mapType.unlockRequirement,
                         fontFamily = blackOpsOne,
