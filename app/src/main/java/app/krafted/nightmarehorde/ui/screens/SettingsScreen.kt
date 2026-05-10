@@ -23,11 +23,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.krafted.nightmarehorde.R
 import app.krafted.nightmarehorde.data.local.SettingsRepository
+import app.krafted.nightmarehorde.engine.audio.MusicManager
+import app.krafted.nightmarehorde.engine.audio.SoundManager
 import androidx.compose.foundation.clickable
 
 @Composable
 fun SettingsScreen(
     settingsRepository: SettingsRepository,
+    soundManager: SoundManager,
+    musicManager: MusicManager,
     onBack: () -> Unit
 ) {
     val creepster = FontFamily(Font(R.font.creepster))
@@ -90,7 +94,11 @@ fun SettingsScreen(
             SettingsSliderRow(
                 label = "MUSIC VOLUME",
                 value = musicVolume,
-                onValueChange = { musicVolume = it; settingsRepository.musicVolume = it },
+                onValueChange = {
+                    musicVolume = it
+                    settingsRepository.musicVolume = it
+                    musicManager.volume = (it / 100f).coerceIn(0f, 1f)
+                },
                 blackOpsOne = blackOpsOne
             )
 
@@ -100,7 +108,11 @@ fun SettingsScreen(
             SettingsSliderRow(
                 label = "SFX VOLUME",
                 value = sfxVolume,
-                onValueChange = { sfxVolume = it; settingsRepository.sfxVolume = it },
+                onValueChange = {
+                    sfxVolume = it
+                    settingsRepository.sfxVolume = it
+                    soundManager.volume = (it / 100f).coerceIn(0f, 1f)
+                },
                 blackOpsOne = blackOpsOne
             )
 

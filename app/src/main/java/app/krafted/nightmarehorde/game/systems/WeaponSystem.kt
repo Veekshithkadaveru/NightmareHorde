@@ -50,6 +50,7 @@ class WeaponSystem(
             }
 
             fireWeapon(entity, weapon, transform, direction, inventory)
+            onWeaponFired?.invoke(weapon.type)
             weapon.resetCooldown()
 
             // Apply cooldown reduction from stats
@@ -63,6 +64,7 @@ class WeaponSystem(
     private val random = java.util.Random()
 
     var onAmmoEmpty: ((WeaponType) -> Unit)? = null
+    var onWeaponFired: ((WeaponType) -> Unit)? = null
 
     companion object {
         // Flame particle colors — random pick for organic fire look

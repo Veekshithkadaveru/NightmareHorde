@@ -29,8 +29,14 @@ class PlayerSystem(
     /** Callback invoked when the player dies. Set by GameViewModel. */
     var onPlayerDeath: (() -> Unit)? = null
 
+    /** Callback invoked when the player takes damage (HP dropped this frame). */
+    var onPlayerHurt: (() -> Unit)? = null
+
     /** Tracks whether death has already been fired this session */
     private var deathFired = false
+
+    /** Last observed HP — used to detect damage for [onPlayerHurt]. -1 = uninitialized. */
+    private var lastObservedHealth: Int = -1
 
     /** Accumulator for HP regen (fractional HP per frame) */
     private var regenAccumulator = 0f
@@ -112,6 +118,14 @@ class PlayerSystem(
             }
         }
 
+        // --- Damage detection (HP drop since last frame) ---
+        if (lastObservedHealth < 0) {
+            lastObservedHealth = health.currentHealth
+        } else if (health.currentHealth < lastObservedHealth && health.isAlive) {
+            onPlayerHurt?.invoke()
+        }
+        lastObservedHealth = health.currentHealth
+
         // --- Invincibility Timer ---
         health.updateInvincibility(deltaTime)
 
@@ -148,5 +162,6 @@ class PlayerSystem(
         lastAimDirection = Vector2(1f, 0f)
         flashTimer = 0f
         regenAccumulator = 0f
+        lastObservedHealth = -1
     }
 }
