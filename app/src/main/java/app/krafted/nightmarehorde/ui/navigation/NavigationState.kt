@@ -22,5 +22,6 @@ data class GameOverStats(
     val killCount: Int,
     val levelReached: Int,
     val bossesDefeated: Int,
-    val characterType: CharacterType
+    val characterType: CharacterType,
+    val suppliesEarned: Int = 0,
 )

@@ -1,44 +1,49 @@
 package app.krafted.nightmarehorde.game.data
 
-/**
- * Tracks map unlock state across game sessions (in-memory for Phase E3).
- * Phase F3 will add SharedPreferences persistence.
- *
- * SUBURBS is always unlocked. Other maps unlock via supplies or boss kills.
- */
-object MapUnlockManager {
+import app.krafted.nightmarehorde.data.local.SaveManager
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.MainScope
+import javax.inject.Inject
+import javax.inject.Singleton
 
-    /** Total boss kills accumulated across all sessions this app launch */
-    var totalBossKills: Int = 10
-        private set
+@Singleton
+class MapUnlockManager @Inject constructor(
+    private val saveManager: SaveManager,
+) {
 
-    /** Total supplies accumulated (Phase F2 will populate this) */
-    var totalSupplies: Int = 2000
-        private set
+    val totalBossKills: Int
+        get() = saveManager.currentSave.stats.totalBossKills
 
-    /**
-     * Returns true if the given map is currently unlocked.
-     */
-    fun isUnlocked(mapType: MapType): Boolean = when {
+    // Lifetime supplies earned — monotonic so unlocks don't regress when supplies are spent.
+    val totalSuppliesEarned: Int
+        get() = saveManager.currentSave.stats.totalSuppliesEarned
+
+    /** Observable unlock-relevant snapshot that triggers Compose recomposition on change. */
+    val unlockState: StateFlow<UnlockState> = saveManager.saveFlow
+        .map { UnlockState(it.stats.totalBossKills, it.stats.totalSuppliesEarned) }
+        .stateIn(
+            scope = MainScope(),
+            started = SharingStarted.Eagerly,
+            initialValue = UnlockState(totalBossKills, totalSuppliesEarned),
+        )
+
+    fun isUnlocked(mapType: MapType): Boolean = isUnlocked(mapType, unlockState.value)
+
+    fun isUnlocked(mapType: MapType, state: UnlockState): Boolean = when {
         mapType.isDefaultUnlocked -> true
-        mapType.requiredBossKills > 0 -> totalBossKills >= mapType.requiredBossKills
-        mapType.unlockCost > 0 -> totalSupplies >= mapType.unlockCost
+        mapType.requiredBossKills > 0 -> state.totalBossKills >= mapType.requiredBossKills
+        mapType.unlockCost > 0 -> state.totalSuppliesEarned >= mapType.unlockCost
         else -> false
     }
 
-    /**
-     * Called when a game run ends. Accumulates boss kills toward map unlocks.
-     * @param bossesDefeated Number of bosses defeated in this run.
-     * @param suppliesEarned Supplies earned this run (Phase F2 integration point).
-     */
-    fun recordRunEnd(bossesDefeated: Int, suppliesEarned: Int = 0) {
-        totalBossKills += bossesDefeated
-        totalSupplies += suppliesEarned
+    fun reset() {
+        saveManager.update { save ->
+            save.copy(stats = save.stats.copy(totalBossKills = 0))
+        }
     }
 
-    /** Reset all unlock progress (for testing or new install). */
-    fun reset() {
-        totalBossKills = 0
-        totalSupplies = 0
-    }
+    data class UnlockState(val totalBossKills: Int, val totalSuppliesEarned: Int)
 }

@@ -10,6 +10,7 @@ data class GameStats(
     val highestWave: Int = 0,
     val totalRunsPlayed: Int = 0,
     val totalSuppliesEarned: Int = 0,
+    val longestRunSeconds: Int = 0,
 )
 
 @Serializable
@@ -17,7 +18,7 @@ data class SaveData(
     val supplies: Int = 0,
     val permanentUpgrades: Map<String, Int> = emptyMap(),
     val unlockedCharacters: Set<String> = setOf("CYBERPUNK_DETECTIVE"),
-    val unlockedMaps: Set<String> = setOf("SUBURBS", "ASHEN_WASTES"),
+    val unlockedMaps: Set<String> = setOf("SUBURBS"),
     val stats: GameStats = GameStats(),
     val version: Int = 1,
     val lastSavedTimestamp: Long = 0,

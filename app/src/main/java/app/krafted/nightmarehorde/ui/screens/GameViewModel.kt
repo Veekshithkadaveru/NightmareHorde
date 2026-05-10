@@ -33,7 +33,6 @@ import app.krafted.nightmarehorde.game.data.CharacterClass
 import app.krafted.nightmarehorde.game.data.CharacterType
 import app.krafted.nightmarehorde.game.data.DroneType
 import app.krafted.nightmarehorde.game.data.MapType
-import app.krafted.nightmarehorde.game.data.MapUnlockManager
 import app.krafted.nightmarehorde.game.data.ObstacleType
 import app.krafted.nightmarehorde.game.data.BossType
 import app.krafted.nightmarehorde.game.data.EvolutionRegistry
@@ -61,6 +60,7 @@ import app.krafted.nightmarehorde.game.systems.CombatSystem
 import app.krafted.nightmarehorde.game.systems.DamagePopupSystem
 import app.krafted.nightmarehorde.game.systems.DayNightCycle
 import app.krafted.nightmarehorde.game.systems.LootDropSystem
+import app.krafted.nightmarehorde.game.systems.SuppliesManager
 import app.krafted.nightmarehorde.game.systems.ObstacleSpawnSystem
 import app.krafted.nightmarehorde.game.systems.ParticleSystem
 import app.krafted.nightmarehorde.game.systems.PickupAnimationSystem
@@ -100,7 +100,8 @@ class GameViewModel @Inject constructor(
     val inputManager: InputManager,
     val aiSystem: AISystem,
     val zombieAnimationSystem: ZombieAnimationSystem,
-    val droneRenderer: DroneRenderer
+    val droneRenderer: DroneRenderer,
+    private val suppliesManager: SuppliesManager,
 ) : ViewModel() {
 
     // Firebase Analytics Instance
@@ -222,6 +223,7 @@ class GameViewModel @Inject constructor(
     private var lastBossSpawnTime: Float = 0f
     private var isBossFightActive: Boolean = false
     private var droneGrantedWave3: Boolean = false
+    private var suppliesAwardedThisRun: Boolean = false
 
     companion object {
         /** Boss spawns every 5 minutes (300 seconds) */
@@ -241,6 +243,7 @@ class GameViewModel @Inject constructor(
         val characterType = characterClass.characterType
         if (isGameRunning) return
         isGameRunning = true
+        suppliesAwardedThisRun = false
         _killCount.value = 0
         _gameTime.value = 0f
         currentMapType = mapType
@@ -338,12 +341,14 @@ class GameViewModel @Inject constructor(
                 // Launch on main thread: game loop runs on Dispatchers.Default,
                 // so we must post state updates to the main thread before stopping.
                 viewModelScope.launch {
+                    val suppliesEarned = awardRunSuppliesIfNeeded()
                     val stats = GameOverStats(
                         survivalTimeSec = if (::waveSpawner.isInitialized) waveSpawner.elapsedGameTime else _gameTime.value,
                         killCount = _killCount.value,
                         levelReached = _xpState.value.currentLevel,
                         bossesDefeated = bossesDefeated,
-                        characterType = currentCharacterClass.characterType
+                        characterType = currentCharacterClass.characterType,
+                        suppliesEarned = suppliesEarned
                     )
                     _gameOverState.value = stats
                     stopGame()
@@ -436,6 +441,13 @@ class GameViewModel @Inject constructor(
             spawnY = mapType.spawnY
         ).apply {
             addComponent(XPComponent())
+        }
+        playerEntity!!.getComponent(StatsComponent::class)?.let { stats ->
+            suppliesManager.applyToStats(stats)
+            playerEntity!!.getComponent(HealthComponent::class)?.let { health ->
+                health.maxHealth = stats.maxHealth
+                health.heal(health.maxHealth)
+            }
         }
         gameLoop.addEntity(playerEntity!!)
 
@@ -584,13 +596,29 @@ class GameViewModel @Inject constructor(
         }
     }
 
+    /** Idempotent — only awards once per run. Safe to call from multiple end-of-run paths. */
+    private fun awardRunSuppliesIfNeeded(): Int {
+        if (suppliesAwardedThisRun || !::waveSpawner.isInitialized) return 0
+        suppliesAwardedThisRun = true
+        return suppliesManager.awardRunEarnings(
+            kills = _killCount.value,
+            bossesDefeated = bossesDefeated,
+            survivalTimeSec = waveSpawner.elapsedGameTime
+        )
+    }
+
     fun stopGame(recordStats: Boolean = true) {
         if (!isGameRunning) return
         val elapsedTime = if (::waveSpawner.isInitialized) waveSpawner.elapsedGameTime else 0f
         crashlytics.log("Game stopped: kills=${_killCount.value}, time=$elapsedTime, bosses=$bossesDefeated")
         crashlytics.setCustomKey("screen", "menu")
         if (recordStats && ::waveSpawner.isInitialized) {
-            MapUnlockManager.recordRunEnd(bossesDefeated = bossesDefeated)
+            awardRunSuppliesIfNeeded()
+            suppliesManager.recordRunStats(
+                kills = _killCount.value,
+                bossesDefeated = bossesDefeated,
+                survivalTimeSec = elapsedTime
+            )
 
             // Log game over to Firebase Analytics
             analytics.logEvent("run_end", Bundle().apply {
@@ -797,7 +825,8 @@ class GameViewModel @Inject constructor(
             deadEntity = deadEntity,
             elapsedGameTime = waveSpawner.elapsedGameTime,
             unlockedWeaponTypes = inventory?.getUnlockedTypes() ?: emptyList(),
-            playerHealthComp = healthComp
+            playerHealthComp = healthComp,
+            scavengerMultiplier = suppliesManager.getScavengerMultiplier()
         )
 
         // Bloater explodes on death

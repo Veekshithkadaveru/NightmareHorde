@@ -39,7 +39,8 @@ class LootDropSystem(
         deadEntity: Entity,
         elapsedGameTime: Float,
         unlockedWeaponTypes: List<WeaponType>,
-        playerHealthComp: HealthComponent?
+        playerHealthComp: HealthComponent?,
+        scavengerMultiplier: Float = 1f
     ) {
         val transform = deadEntity.getComponent(TransformComponent::class) ?: return
         val zombieType = deadEntity.getComponent(ZombieTypeComponent::class)
@@ -70,12 +71,12 @@ class LootDropSystem(
             val healthMissingPercent = 1f - healthPercent
             val pityBonus = healthMissingPercent * 0.25f
             val criticalBonus = if (healthPercent < 0.3f) 0.20f else 0f
-            healthDropChance = (baseChance + pityBonus + criticalBonus) * xpMultiplier
+            healthDropChance = ((baseChance + pityBonus + criticalBonus) * xpMultiplier * scavengerMultiplier).coerceAtMost(0.95f)
         } else {
             healthDropChance = 0f
         }
 
-        val effectiveAmmoDrop = AMMO_DROP_CHANCE * xpMultiplier
+        val effectiveAmmoDrop = (AMMO_DROP_CHANCE * xpMultiplier * scavengerMultiplier).coerceAtMost(0.95f)
         val roll = rng.nextFloat()
 
         val offsetX = (rng.nextFloat() - 0.5f) * 20f

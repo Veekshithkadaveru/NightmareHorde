@@ -6,7 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
@@ -22,38 +22,23 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.krafted.nightmarehorde.R
-
-private data class PermanentUpgrade(
-    val name: String,
-    val effect: String,
-    val maxLevel: Int,
-    val costPerLevel: Int
-)
-
-private val PERMANENT_UPGRADES = listOf(
-    PermanentUpgrade("Toughness",    "+10 Max HP",         maxLevel = 10, costPerLevel = 100),
-    PermanentUpgrade("Firepower",    "+5% Damage",         maxLevel = 10, costPerLevel = 150),
-    PermanentUpgrade("Mobility",     "+5% Speed",          maxLevel = 5,  costPerLevel = 200),
-    PermanentUpgrade("Scavenger",    "+10% More Drops",    maxLevel = 10, costPerLevel = 120),
-    PermanentUpgrade("Drone Master", "+10% Drone Damage",  maxLevel = 5,  costPerLevel = 250),
-    PermanentUpgrade("Ammo Belt",    "+10% Ammo",          maxLevel = 10, costPerLevel = 100),
-    PermanentUpgrade("Second Wind",  "+1 Revive/Run",      maxLevel = 3,  costPerLevel = 500),
-)
+import app.krafted.nightmarehorde.game.data.PermanentUpgrade
+import app.krafted.nightmarehorde.game.systems.SuppliesManager
 
 @Composable
 fun ShopScreen(
+    suppliesManager: SuppliesManager,
     onBack: () -> Unit
 ) {
     val creepster = FontFamily(Font(R.font.creepster))
     val blackOpsOne = FontFamily(Font(R.font.black_ops_one))
 
-    var supplies by remember { mutableIntStateOf(0) }
-    val levels = remember { mutableStateListOf(*IntArray(PERMANENT_UPGRADES.size) { 0 }.toTypedArray()) }
+    val supplies by suppliesManager.supplies.collectAsState()
+    val levels by suppliesManager.upgradeLevels.collectAsState()
 
     Box(
         modifier = Modifier
@@ -71,7 +56,6 @@ fun ShopScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
 
-            // Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -93,7 +77,6 @@ fun ShopScreen(
                     )
                 )
 
-                // Supplies balance
                 Box(
                     modifier = Modifier
                         .clip(CutCornerShape(8.dp))
@@ -111,7 +94,6 @@ fun ShopScreen(
                 }
             }
 
-            // Gold divider
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -122,7 +104,6 @@ fun ShopScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Upgrade grid
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
@@ -132,11 +113,10 @@ fun ShopScreen(
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                itemsIndexed(PERMANENT_UPGRADES) { index, upgrade ->
-                    val currentLevel = levels[index]
-                    val isMaxed = currentLevel >= upgrade.maxLevel
-                    val canAfford = supplies >= upgrade.costPerLevel
-                    val canBuy = !isMaxed && canAfford
+                items(PermanentUpgrade.entries.toTypedArray()) { upgrade ->
+                    val currentLevel = levels[upgrade.name] ?: 0
+                    val isMaxed = suppliesManager.isMaxLevel(upgrade)
+                    val canBuy = suppliesManager.canPurchase(upgrade)
 
                     UpgradeCard(
                         upgrade = upgrade,
@@ -145,8 +125,7 @@ fun ShopScreen(
                         isMaxed = isMaxed,
                         blackOpsOne = blackOpsOne,
                         onBuy = {
-                            supplies -= upgrade.costPerLevel
-                            levels[index] = currentLevel + 1
+                            suppliesManager.purchase(upgrade)
                         }
                     )
                 }
@@ -155,7 +134,6 @@ fun ShopScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Back button — bottom left
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
@@ -208,9 +186,8 @@ private fun UpgradeCard(
             .padding(14.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Name
         Text(
-            text = upgrade.name.uppercase(),
+            text = upgrade.displayName.uppercase(),
             fontFamily = blackOpsOne,
             fontSize = 14.sp,
             color = if (isMaxed) Color(0xFFFFD700) else Color.White,
@@ -220,7 +197,6 @@ private fun UpgradeCard(
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        // Effect
         Text(
             text = upgrade.effect,
             fontSize = 12.sp,
@@ -230,7 +206,6 @@ private fun UpgradeCard(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Level progress
         Text(
             text = if (isMaxed) "MAX" else "Lv $currentLevel / ${upgrade.maxLevel}",
             fontFamily = blackOpsOne,
@@ -251,7 +226,6 @@ private fun UpgradeCard(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Buy button
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -269,11 +243,7 @@ private fun UpgradeCard(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = when {
-                    isMaxed -> "MAXED"
-                    !canBuy && currentLevel == 0 -> "⚙ ${upgrade.costPerLevel}"
-                    else -> "⚙ ${upgrade.costPerLevel}"
-                },
+                text = if (isMaxed) "MAXED" else "⚙ ${upgrade.costPerLevel}",
                 fontFamily = blackOpsOne,
                 fontSize = 13.sp,
                 color = if (canBuy) Color.White else Color(0xFF666666),

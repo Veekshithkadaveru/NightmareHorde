@@ -21,8 +21,7 @@ class SaveDataTest {
         assertTrue(saveData.unlockedCharacters.contains("CYBERPUNK_DETECTIVE"))
         assertEquals(1, saveData.unlockedCharacters.size)
         assertTrue(saveData.unlockedMaps.contains("SUBURBS"))
-        assertTrue(saveData.unlockedMaps.contains("ASHEN_WASTES"))
-        assertEquals(2, saveData.unlockedMaps.size)
+        assertEquals(1, saveData.unlockedMaps.size)
         assertEquals(GameStats(), saveData.stats)
         assertEquals(1, saveData.version)
         assertEquals(0L, saveData.lastSavedTimestamp)
@@ -67,6 +66,7 @@ class SaveDataTest {
         assertEquals(0, stats.highestWave)
         assertEquals(0, stats.totalRunsPlayed)
         assertEquals(0, stats.totalSuppliesEarned)
+        assertEquals(0, stats.longestRunSeconds)
     }
 
     // --- GameStats serialization round-trip ---
@@ -97,7 +97,7 @@ class SaveDataTest {
                 "supplies": 100,
                 "permanentUpgrades": {},
                 "unlockedCharacters": ["CYBERPUNK_DETECTIVE"],
-                "unlockedMaps": ["SUBURBS", "ASHEN_WASTES"],
+                "unlockedMaps": ["SUBURBS"],
                 "stats": {"totalKills": 0, "totalBossKills": 0, "totalPlayTimeSeconds": 0, "highestWave": 0, "totalRunsPlayed": 0, "totalSuppliesEarned": 0},
                 "version": 1,
                 "lastSavedTimestamp": 0,
