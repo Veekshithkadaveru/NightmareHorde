@@ -27,6 +27,8 @@ class PickupCollisionSystem(
     private val gameLoop: GameLoop
 ) : GameSystem(priority = 40) {
 
+    var onPickupCollected: (() -> Unit)? = null
+
     /** Tracks recently rejected pickups to avoid per-frame re-processing. */
     private val rejectionCooldowns = mutableMapOf<Long, Float>()
 
@@ -73,6 +75,7 @@ class PickupCollisionSystem(
                 val stats = player.getComponent(StatsComponent::class)
                 val effectiveXP = (xpOrb.xpValue * (stats?.xpMultiplier ?: 1f)).toInt().coerceAtLeast(1)
                 xpComp.addXP(effectiveXP)
+                onPickupCollected?.invoke()
                 gameLoop.removeEntity(pickup)
             }
             return
@@ -86,6 +89,7 @@ class PickupCollisionSystem(
             val targetType = ammoComp.weaponType ?: inventory.activeWeaponType
             if (inventory.hasWeapon(targetType)) {
                 inventory.addAmmo(targetType, ammoComp.amount, stats?.ammoCapacityMultiplier ?: 1f)
+                onPickupCollected?.invoke()
                 gameLoop.removeEntity(pickup)
             }
             return
@@ -97,6 +101,7 @@ class PickupCollisionSystem(
             val health = player.getComponent(HealthComponent::class) ?: return
             if (health.currentHealth < health.maxHealth) {
                 health.heal(healthPickup.healAmount)
+                onPickupCollected?.invoke()
                 gameLoop.removeEntity(pickup)
             } else {
                 // Player at full health — skip this pickup for a while

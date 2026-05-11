@@ -11,6 +11,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.google.firebase.analytics.FirebaseAnalytics
 import app.krafted.nightmarehorde.data.local.SettingsRepository
+import app.krafted.nightmarehorde.engine.audio.MusicManager
+import app.krafted.nightmarehorde.engine.audio.SoundManager
 import app.krafted.nightmarehorde.game.data.CharacterClass
 import app.krafted.nightmarehorde.game.data.MapUnlockManager
 import app.krafted.nightmarehorde.game.systems.SuppliesManager
@@ -27,10 +29,12 @@ fun NightmareHordeNavHost(
     settingsRepository: SettingsRepository,
     mapUnlockManager: MapUnlockManager,
     suppliesManager: SuppliesManager,
+    soundManager: SoundManager,
+    musicManager: MusicManager,
 ) {
     val context = LocalContext.current
     val analytics = remember { FirebaseAnalytics.getInstance(context) }
-    
+
     var currentScreen by remember { mutableStateOf<Screen>(Screen.MainMenu) }
 
     LaunchedEffect(currentScreen) {
@@ -43,11 +47,17 @@ fun NightmareHordeNavHost(
             is Screen.Settings -> "SettingsScreen"
             is Screen.Shop -> "ShopScreen"
         }
-        
+
         analytics.logEvent(FirebaseAnalytics.Event.SCREEN_VIEW, Bundle().apply {
             putString(FirebaseAnalytics.Param.SCREEN_NAME, screenName)
             putString(FirebaseAnalytics.Param.SCREEN_CLASS, "MainActivity")
         })
+
+        // Switch background music to match the current screen
+        when (currentScreen) {
+            is Screen.Game -> musicManager.playGameMusic()
+            else -> musicManager.playMenuMusic()
+        }
     }
 
     when (val screen = currentScreen) {
@@ -94,6 +104,8 @@ fun NightmareHordeNavHost(
 
         is Screen.Settings -> SettingsScreen(
             settingsRepository = settingsRepository,
+            soundManager = soundManager,
+            musicManager = musicManager,
             onBack = { currentScreen = Screen.MainMenu }
         )
 

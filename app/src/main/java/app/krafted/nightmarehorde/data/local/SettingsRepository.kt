@@ -14,7 +14,7 @@ class SettingsRepository @Inject constructor(
         set(value) = prefs.edit().putFloat(KEY_MUSIC_VOLUME, value).apply()
 
     var sfxVolume: Float
-        get() = prefs.getFloat(KEY_SFX_VOLUME, 80f)
+        get() = prefs.getFloat(KEY_SFX_VOLUME, 50f)
         set(value) = prefs.edit().putFloat(KEY_SFX_VOLUME, value).apply()
 
     var showFps: Boolean

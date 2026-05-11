@@ -18,6 +18,8 @@ import app.krafted.nightmarehorde.engine.core.components.StatsComponent
 import app.krafted.nightmarehorde.engine.core.components.TransformComponent
 import app.krafted.nightmarehorde.engine.core.components.WeaponInventoryComponent
 import app.krafted.nightmarehorde.engine.core.components.XPComponent
+import app.krafted.nightmarehorde.R
+import app.krafted.nightmarehorde.engine.audio.SoundManager
 import app.krafted.nightmarehorde.engine.input.InputManager
 import app.krafted.nightmarehorde.engine.physics.CollisionResponseSystem
 import app.krafted.nightmarehorde.engine.physics.CollisionSystem
@@ -102,6 +104,7 @@ class GameViewModel @Inject constructor(
     val zombieAnimationSystem: ZombieAnimationSystem,
     val droneRenderer: DroneRenderer,
     private val suppliesManager: SuppliesManager,
+    private val soundManager: SoundManager,
 ) : ViewModel() {
 
     // Firebase Analytics Instance
@@ -337,6 +340,7 @@ class GameViewModel @Inject constructor(
         gameLoop.addSystem(mfs)
 
         val playerSystem = PlayerSystem(inputManager, camera).apply {
+            onPlayerHurt = { soundManager.playSound(R.raw.sfx_player_hurt) }
             onPlayerDeath = {
                 // Launch on main thread: game loop runs on Dispatchers.Default,
                 // so we must post state updates to the main thread before stopping.
@@ -395,12 +399,17 @@ class GameViewModel @Inject constructor(
             onAmmoEmpty = { emptyWeaponType ->
                 weaponManager.onAmmoEmpty(emptyWeaponType)
             }
+            onWeaponFired = { firedType ->
+                soundManager.playSound(weaponFireSoundRes(firedType))
+            }
         }
         gameLoop.addSystem(weaponSystem)
 
         // PickupCollisionSystem (40): pickup handling (ammo + health)
         val collisionSystem = CollisionSystem(spatialGrid)
-        gameLoop.addSystem(PickupCollisionSystem(collisionSystem, gameLoop))
+        gameLoop.addSystem(PickupCollisionSystem(collisionSystem, gameLoop).apply {
+            onPickupCollected = { soundManager.playSound(R.raw.sfx_pickup) }
+        })
 
         gameLoop.addSystem(MovementSystem())
         gameLoop.addSystem(CollisionResponseSystem())
@@ -559,6 +568,7 @@ class GameViewModel @Inject constructor(
                                 level = xpComp.currentLevel + 1,
                                 upgrades = options
                             )
+                            soundManager.playSound(R.raw.sfx_level_up)
                         }
                     }
                 }
@@ -804,9 +814,19 @@ class GameViewModel @Inject constructor(
 
     // ─── Enemy Death Handler ──────────────────────────────────────────────
 
+    private fun weaponFireSoundRes(type: WeaponType): Int = when (type) {
+        WeaponType.PISTOL -> R.raw.sfx_pistol
+        WeaponType.SHOTGUN -> R.raw.sfx_shotgun
+        WeaponType.SMG -> R.raw.sfx_smg
+        WeaponType.ASSAULT_RIFLE -> R.raw.sfx_rifle
+        WeaponType.FLAMETHROWER -> R.raw.sfx_flamethrower
+        WeaponType.MELEE, WeaponType.SWORD -> R.raw.sfx_melee
+    }
+
     private fun handleEnemyDeath(deadEntity: Entity) {
         _killCount.value++
         val kills = _killCount.value
+        soundManager.playSound(R.raw.sfx_zombie_death)
 
         // Update crashlytics on kills
         crashlytics.setCustomKey("current_kills", kills)
@@ -915,6 +935,7 @@ class GameViewModel @Inject constructor(
         gameLoop.addEntity(boss)
         activeBossEntity = boss
         isBossFightActive = true
+        soundManager.playSound(R.raw.sfx_boss_spawn)
 
         // Log boss spawn
         analytics.logEvent("boss_spawned", Bundle().apply {
