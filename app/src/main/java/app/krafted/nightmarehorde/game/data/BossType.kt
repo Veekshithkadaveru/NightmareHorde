@@ -45,7 +45,7 @@ enum class BossType(
         displayName = "The Widowmaker",
         assetName = "boss_widowmaker",
         baseHealth = 600,
-        damage = 25f,
+        damage = 31.25f,
         moveSpeed = 45f,
         xpReward = 80,
         colliderRadius = 36f,
@@ -54,7 +54,7 @@ enum class BossType(
         frameHeight = 80,
         frameCount = 7,
         animationFps = 10f,
-        scale = 2.5f,              // Boss size scalar
+        scale = 3.125f,            // Boss size scalar
         accentColor = 0xFF8844FF,  // Venomous purple
         multiHitResistance = 0.55f, // 55% reduced damage from multi-hit weapons
         preferredRange = 250f       // Prefers mid-range for web throws
@@ -69,7 +69,7 @@ enum class BossType(
         displayName = "The Executioner",
         assetName = "boss_executioner",
         baseHealth = 800,
-        damage = 40f,
+        damage = 50f,
         moveSpeed = 35f,
         xpReward = 120,
         colliderRadius = 40f,
@@ -78,7 +78,7 @@ enum class BossType(
         frameHeight = 100,
         frameCount = 6,
         animationFps = 6f,
-        scale = 2.5f,              // Boss size scalar
+        scale = 3.125f,            // Boss size scalar
         accentColor = 0xFFAA2222,  // Blood red
         multiHitResistance = 0.60f, // 60% reduced — heavily armored
         preferredRange = 150f       // Closer than tank, throwing axes are shorter range
@@ -93,7 +93,7 @@ enum class BossType(
         displayName = "The Behemoth",
         assetName = "boss_amalgam", // Keep the same asset key to overwrite without huge refactors
         baseHealth = 1200,
-        damage = 50f,
+        damage = 62.5f,
         moveSpeed = 30f,
         xpReward = 180,
         colliderRadius = 40f,
@@ -102,7 +102,7 @@ enum class BossType(
         frameHeight = 110,
         frameCount = 6,
         animationFps = 6f,
-        scale = 2.5f,              // Massive hulking brute
+        scale = 3.125f,            // Massive hulking brute
         accentColor = 0xFF44AA33,  // Mutated green
         multiHitResistance = 0.50f,
         preferredRange = 220f

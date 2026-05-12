@@ -34,8 +34,8 @@ class WaveSpawner(
         const val SPAWN_DISTANCE_MAX = 600f
         const val DESPAWN_DISTANCE = 1200f
 
-        const val BASE_SPAWN_INTERVAL_MS = 800L
-        const val MIN_SPAWN_INTERVAL_MS = 150L
+        const val BASE_SPAWN_INTERVAL_MS = 1345L
+        const val MIN_SPAWN_INTERVAL_MS = 252L
 
         const val BASE_MAX_ENEMIES = 15
         const val ABSOLUTE_MAX_ENEMIES = 100

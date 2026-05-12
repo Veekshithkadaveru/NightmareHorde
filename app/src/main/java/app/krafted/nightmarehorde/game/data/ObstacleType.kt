@@ -30,7 +30,7 @@ enum class ObstacleType(
         colliderHalfWidth = 10f,
         colliderHalfHeight = 10f,
         validMaps = setOf(MapType.ASHEN_WASTES, MapType.MILITARY_BASE, MapType.LAB),
-        scale = 0.7f,
+        scale = 0.875f,
         spawnWeight = 15
     ),
     TREE(
@@ -40,7 +40,7 @@ enum class ObstacleType(
         colliderHalfWidth = 20f,
         colliderHalfHeight = 20f,
         validMaps = emptySet(),
-        scale = 1.5f,
+        scale = 1.875f,
         spawnWeight = 12
     ),
     BUSH(
@@ -50,7 +50,7 @@ enum class ObstacleType(
         colliderHalfWidth = 14f,
         colliderHalfHeight = 14f,
         validMaps = setOf(MapType.SUBURBS, MapType.MALL),
-        scale = 1.2f,
+        scale = 1.5f,
         spawnWeight = 15
     ),
     BARREL(
@@ -60,7 +60,7 @@ enum class ObstacleType(
         colliderHalfWidth = 10f,
         colliderHalfHeight = 10f,
         validMaps = setOf(MapType.SUBURBS, MapType.MALL, MapType.MILITARY_BASE, MapType.LAB),
-        scale = 1.0f,
+        scale = 1.25f,
         spawnWeight = 10
     ),
 
@@ -72,7 +72,7 @@ enum class ObstacleType(
         colliderHalfWidth = 28f,
         colliderHalfHeight = 16f,
         validMaps = setOf(MapType.SUBURBS),
-        scale = 1.2f,
+        scale = 1.5f,
         spawnWeight = 15
     ),
     STREET_LAMP(
@@ -82,7 +82,7 @@ enum class ObstacleType(
         colliderHalfWidth = 8f,
         colliderHalfHeight = 8f,
         validMaps = setOf(MapType.SUBURBS),
-        scale = 1f,
+        scale = 1.25f,
         spawnWeight = 10
     ),
 
@@ -94,7 +94,7 @@ enum class ObstacleType(
         colliderHalfWidth = 30f,
         colliderHalfHeight = 28f,
         validMaps = setOf(MapType.MALL),
-        scale = 1.2f,
+        scale = 1.5f,
         spawnWeight = 15
     ),
     POT_PLANT(
@@ -104,7 +104,7 @@ enum class ObstacleType(
         colliderHalfWidth = 8f,
         colliderHalfHeight = 6f,
         validMaps = setOf(MapType.MALL),
-        scale = 1.5f,
+        scale = 1.875f,
         spawnWeight = 12
     ),
     BENCH(
@@ -114,7 +114,7 @@ enum class ObstacleType(
         colliderHalfWidth = 16f,
         colliderHalfHeight = 8f,
         validMaps = setOf(MapType.MALL),
-        scale = 1.3f,
+        scale = 1.625f,
         spawnWeight = 15
     ),
 
@@ -126,7 +126,7 @@ enum class ObstacleType(
         colliderHalfWidth = 30f,
         colliderHalfHeight = 15f,
         validMaps = setOf(MapType.ASHEN_WASTES),
-        scale = 0.8f,
+        scale = 1.0f,
         spawnWeight = 10
     ),
     CRATER(
@@ -136,7 +136,7 @@ enum class ObstacleType(
         colliderHalfWidth = 12f,
         colliderHalfHeight = 12f,
         validMaps = setOf(MapType.ASHEN_WASTES),
-        scale = 1.5f,
+        scale = 1.875f,
         spawnWeight = 15
     ),
 
@@ -148,7 +148,7 @@ enum class ObstacleType(
         colliderHalfWidth = 16f,
         colliderHalfHeight = 14f,
         validMaps = setOf(MapType.MILITARY_BASE),
-        scale = 1f,
+        scale = 1.25f,
         spawnWeight = 20
     ),
     TANK_TRAP(
@@ -158,7 +158,7 @@ enum class ObstacleType(
         colliderHalfWidth = 10f,
         colliderHalfHeight = 10f,
         validMaps = setOf(MapType.MILITARY_BASE),
-        scale = 1.2f,
+        scale = 1.5f,
         spawnWeight = 15
     ),
     WEAPONS_CRATE(
@@ -168,7 +168,7 @@ enum class ObstacleType(
         colliderHalfWidth = 16f,
         colliderHalfHeight = 14f,
         validMaps = setOf(MapType.MILITARY_BASE),
-        scale = 1f,
+        scale = 1.25f,
         spawnWeight = 10
     ),
 
@@ -180,7 +180,7 @@ enum class ObstacleType(
         colliderHalfWidth = 28f,
         colliderHalfHeight = 24f,
         validMaps = setOf(MapType.LAB),
-        scale = 1f,
+        scale = 1.25f,
         spawnWeight = 15
     ),
     CRYO_POD(
@@ -190,7 +190,7 @@ enum class ObstacleType(
         colliderHalfWidth = 24f,
         colliderHalfHeight = 38f,
         validMaps = setOf(MapType.LAB),
-        scale = 1f,
+        scale = 1.25f,
         spawnWeight = 10
     ),
     LAB_DESK(
@@ -200,7 +200,7 @@ enum class ObstacleType(
         colliderHalfWidth = 32f,
         colliderHalfHeight = 28f,
         validMaps = setOf(MapType.LAB),
-        scale = 1f,
+        scale = 1.25f,
         spawnWeight = 12
     );
 

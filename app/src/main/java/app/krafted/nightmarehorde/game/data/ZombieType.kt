@@ -26,7 +26,7 @@ enum class ZombieType(
     WALKER(
         assetName = "zombie_walker_run",
         maxHealth = 15,
-        damage = 5f,
+        damage = 6.25f,
         moveSpeed = 40f,
         xpReward = 1,
         colliderRadius = 12f,
@@ -35,12 +35,12 @@ enum class ZombieType(
         frameHeight = 96,
         frameCount = 6,
         animationFps = 10f,
-        scale = 1.0f  // Since height is 96, no scale needed to match ~86 as before (was 0.9*96=86). We can keep it 1.0f.
+        scale = 1.375f
     ),
     RUNNER(
         assetName = "zombie_runner_run",
         maxHealth = 10,
-        damage = 8f,
+        damage = 10f,
         moveSpeed = 90f,
         xpReward = 1,
         colliderRadius = 10f,
@@ -49,12 +49,12 @@ enum class ZombieType(
         frameHeight = 64,
         frameCount = 6,
         animationFps = 12f,
-        scale = 1.0f  // Since height is 64, matches roughly the intended ~63.
+        scale = 1.375f
     ),
     BLOATER(
         assetName = "zombie_bloater_run",
         maxHealth = 50,
-        damage = 15f,
+        damage = 18.75f,
         moveSpeed = 30f,
         xpReward = 3,
         colliderRadius = 16f,
@@ -62,14 +62,14 @@ enum class ZombieType(
         behaviorRange = 40f,
         frameWidth = 46, // 276 / 6 = 46
         frameHeight = 64,
-        frameCount = 6, 
+        frameCount = 6,
         animationFps = 8f,
-        scale = 2.2f  // Increased to 1.5x player size
+        scale = 2.75f
     ),
     SPITTER(
         assetName = "zombie_spitter_run",
         maxHealth = 20,
-        damage = 10f,
+        damage = 12.5f,
         moveSpeed = 35f,
         xpReward = 2,
         colliderRadius = 12f,
@@ -79,13 +79,13 @@ enum class ZombieType(
         frameHeight = 64,
         frameCount = 6, // Updated to 6 frames
         animationFps = 10f,
-        scale = 1.0f,  // Standard 1.0 scale is fine since base height is ~64
+        scale = 1.375f,
         defaultFlipX = false // New sprites face right by default
     ),
     ARMORED(
         assetName = "zombie_armored_run",
         maxHealth = 150, // Heavily armored
-        damage = 18f,
+        damage = 22.5f,
         moveSpeed = 30f, // Slow stopming movement
         xpReward = 6,
         colliderRadius = 14f,
@@ -95,12 +95,12 @@ enum class ZombieType(
         frameHeight = 64,
         frameCount = 6,
         animationFps = 8f,
-        scale = 2.2f  // Increased to 1.5x player size
+        scale = 2.75f
     ),
     HELLHOUND(
         assetName = "zombie_hellhound_run",
         maxHealth = 35, // Low health, high speed
-        damage = 10f,
+        damage = 12.5f,
         moveSpeed = 100f, // Very fast
         xpReward = 4,
         colliderRadius = 12f,
@@ -110,12 +110,12 @@ enum class ZombieType(
         frameHeight = 40,
         frameCount = 6,
         animationFps = 16f,
-        scale = 1.5f  // Height is 40, 1.5x puts it around 60px visual height
+        scale = 2.0625f
     ),
     BRUTE(
         assetName = "zombie_brute_run",
         maxHealth = 100,
-        damage = 25f,
+        damage = 31.25f,
         moveSpeed = 50f,
         xpReward = 5,
         colliderRadius = 22f,
@@ -125,12 +125,12 @@ enum class ZombieType(
         frameHeight = 74,
         frameCount = 6,
         animationFps = 8f,
-        scale = 2.0f  // Increased to 1.5x player size
+        scale = 2.5f
     ),
     CRAWLER(
         assetName = "zombie_crawler_run",
         maxHealth = 40,
-        damage = 12f,
+        damage = 15f,
         moveSpeed = 80f,
         xpReward = 3,
         colliderRadius = 14f,
@@ -140,12 +140,12 @@ enum class ZombieType(
         frameHeight = 32,
         frameCount = 5,
         animationFps = 15f,
-        scale = 2.0f  // Since height is 32px, 2.0x scales it to match the ~64px height of others
+        scale = 2.75f
     ),
     SCREAMER(
         assetName = "zombie_screamer_run",
         maxHealth = 30, // Low health
-        damage = 5f, // Minimal melee damage, primary threat is calling others
+        damage = 6.25f, // Minimal melee damage, primary threat is calling others
         moveSpeed = 45f,
         xpReward = 4,
         colliderRadius = 10f,
@@ -155,6 +155,6 @@ enum class ZombieType(
         frameHeight = 64,
         frameCount = 6,
         animationFps = 12f,
-        scale = 1.0f  // Standard zombie height scale since it's 64px
+        scale = 1.375f
     )
 }
