@@ -27,7 +27,7 @@ enum class CharacterType(
         frameHeight = 32,
         idleFrameCount = 6,
         runFrameCount = 6,
-        scale = 3.7f,
+        scale = 4.625f,
         colliderRadius = 15f
     ),
 
@@ -39,7 +39,7 @@ enum class CharacterType(
         frameHeight = 96,
         idleFrameCount = 4,
         runFrameCount = 12,
-        scale = 1.24f,
+        scale = 1.5417f,
         colliderRadius = 15f
     ),
 
@@ -51,7 +51,7 @@ enum class CharacterType(
         frameHeight = 32,
         idleFrameCount = 6,
         runFrameCount = 6,
-        scale = 3.7f,
+        scale = 4.625f,
         colliderRadius = 15f
     ),
 
@@ -63,7 +63,7 @@ enum class CharacterType(
         frameHeight = 32,
         idleFrameCount = 6,
         runFrameCount = 6,
-        scale = 3.7f,
+        scale = 4.625f,
         colliderRadius = 15f
     ),
 
@@ -75,7 +75,7 @@ enum class CharacterType(
         frameHeight = 48,
         idleFrameCount = 4,
         runFrameCount = 10,
-        scale = 2.5f,
+        scale = 3.0833f,
         colliderRadius = 15f
     ),
 
@@ -87,7 +87,7 @@ enum class CharacterType(
         frameHeight = 60,
         idleFrameCount = 2,
         runFrameCount = 6,
-        scale = 2f,
+        scale = 2.4667f,
         colliderRadius = 15f
     ),
 
@@ -99,7 +99,7 @@ enum class CharacterType(
         frameHeight = 54,
         idleFrameCount = 6,
         runFrameCount = 7,
-        scale = 2.2f,
+        scale = 2.7407f,
         colliderRadius = 15f
     )
 }

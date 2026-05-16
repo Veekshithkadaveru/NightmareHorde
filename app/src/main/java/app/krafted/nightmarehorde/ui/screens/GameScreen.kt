@@ -78,8 +78,8 @@ fun GameScreen(
     // Navigate to GameOver screen when player dies
     LaunchedEffect(gameOverStats) {
         val stats = gameOverStats ?: return@LaunchedEffect
-        viewModel.resetGameOver()
         onGameOver(stats)
+        viewModel.resetGameOver()
     }
 
     var frameTick by remember { mutableIntStateOf(0) }

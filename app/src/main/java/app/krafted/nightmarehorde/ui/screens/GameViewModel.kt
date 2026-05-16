@@ -342,8 +342,9 @@ class GameViewModel @Inject constructor(
         val playerSystem = PlayerSystem(inputManager, camera).apply {
             onPlayerHurt = { soundManager.playSound(R.raw.sfx_player_hurt) }
             onPlayerDeath = {
-                // Launch on main thread: game loop runs on Dispatchers.Default,
-                // so we must post state updates to the main thread before stopping.
+                // Immediately freeze the game loop from the game-loop thread so
+                // no further systems tick while we dispatch to the main thread.
+                gameLoop.pause()
                 viewModelScope.launch {
                     val suppliesEarned = awardRunSuppliesIfNeeded()
                     val stats = GameOverStats(
