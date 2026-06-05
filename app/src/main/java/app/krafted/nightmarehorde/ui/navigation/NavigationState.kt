@@ -5,6 +5,7 @@ import app.krafted.nightmarehorde.game.data.CharacterType
 import app.krafted.nightmarehorde.game.data.MapType
 
 sealed class Screen {
+    data object Splash : Screen()
     data object MainMenu : Screen()
     data object CharacterSelect : Screen()
     data class MapSelect(val characterClass: CharacterClass) : Screen()

@@ -16,3 +16,6 @@ DEVELOPMENT_PLAN.md
 # Firebase
 google-services.json
 app/google-services.json
+.claude
+.idea
+.kotlin

@@ -23,6 +23,7 @@ import app.krafted.nightmarehorde.ui.screens.MainMenuScreen
 import app.krafted.nightmarehorde.ui.screens.MapSelectScreen
 import app.krafted.nightmarehorde.ui.screens.SettingsScreen
 import app.krafted.nightmarehorde.ui.screens.ShopScreen
+import app.krafted.nightmarehorde.ui.screens.SplashScreen
 
 @Composable
 fun NightmareHordeNavHost(
@@ -35,10 +36,11 @@ fun NightmareHordeNavHost(
     val context = LocalContext.current
     val analytics = remember { FirebaseAnalytics.getInstance(context) }
 
-    var currentScreen by remember { mutableStateOf<Screen>(Screen.MainMenu) }
+    var currentScreen by remember { mutableStateOf<Screen>(Screen.Splash) }
 
     LaunchedEffect(currentScreen) {
         val screenName = when (currentScreen) {
+            is Screen.Splash -> "SplashScreen"
             is Screen.MainMenu -> "MainMenuScreen"
             is Screen.CharacterSelect -> "CharacterSelectScreen"
             is Screen.MapSelect -> "MapSelectScreen"
@@ -61,6 +63,10 @@ fun NightmareHordeNavHost(
     }
 
     when (val screen = currentScreen) {
+        is Screen.Splash -> SplashScreen(
+            onSplashFinished = { currentScreen = Screen.MainMenu }
+        )
+
         is Screen.MainMenu -> MainMenuScreen(
             onPlayClicked = { currentScreen = Screen.CharacterSelect },
             onShopClicked = { currentScreen = Screen.Shop },
