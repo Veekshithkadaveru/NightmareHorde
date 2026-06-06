@@ -1,6 +1,7 @@
 package app.krafted.nightmarehorde.ui.navigation
 
 import android.os.Bundle
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -23,6 +24,7 @@ import app.krafted.nightmarehorde.ui.screens.MainMenuScreen
 import app.krafted.nightmarehorde.ui.screens.MapSelectScreen
 import app.krafted.nightmarehorde.ui.screens.SettingsScreen
 import app.krafted.nightmarehorde.ui.screens.ShopScreen
+import app.krafted.nightmarehorde.ui.screens.SplashScreen
 
 @Composable
 fun NightmareHordeNavHost(
@@ -35,10 +37,11 @@ fun NightmareHordeNavHost(
     val context = LocalContext.current
     val analytics = remember { FirebaseAnalytics.getInstance(context) }
 
-    var currentScreen by remember { mutableStateOf<Screen>(Screen.MainMenu) }
+    var currentScreen by remember { mutableStateOf<Screen>(Screen.Splash) }
 
     LaunchedEffect(currentScreen) {
         val screenName = when (currentScreen) {
+            is Screen.Splash -> "SplashScreen"
             is Screen.MainMenu -> "MainMenuScreen"
             is Screen.CharacterSelect -> "CharacterSelectScreen"
             is Screen.MapSelect -> "MapSelectScreen"
@@ -60,58 +63,73 @@ fun NightmareHordeNavHost(
         }
     }
 
-    when (val screen = currentScreen) {
-        is Screen.MainMenu -> MainMenuScreen(
-            onPlayClicked = { currentScreen = Screen.CharacterSelect },
-            onShopClicked = { currentScreen = Screen.Shop },
-            onSettingsClicked = { currentScreen = Screen.Settings }
-        )
+    // While the splash is up, compose the menu it reveals beneath it so the
+    // splash's exit fade crossfades into the menu instead of the bare window
+    // background. MainMenu stays at the same call site across Splash -> MainMenu,
+    // so its composition carries over with no re-init flash at the swap.
+    val baseScreen = if (currentScreen is Screen.Splash) Screen.MainMenu else currentScreen
 
-        is Screen.CharacterSelect -> {
-            val stats by suppliesManager.statsFlow.collectAsState()
-            CharacterSelectScreen(
-                isCharacterUnlocked = { it.unlockChallenge.isCompleted(stats) },
-                onCharacterSelected = { characterClass ->
-                    currentScreen = Screen.MapSelect(characterClass)
-                },
+    Box {
+        when (val screen = baseScreen) {
+            is Screen.Splash -> Unit // unreachable: baseScreen maps Splash -> MainMenu
+
+            is Screen.MainMenu -> MainMenuScreen(
+                onPlayClicked = { currentScreen = Screen.CharacterSelect },
+                onShopClicked = { currentScreen = Screen.Shop },
+                onSettingsClicked = { currentScreen = Screen.Settings }
+            )
+
+            is Screen.CharacterSelect -> {
+                val stats by suppliesManager.statsFlow.collectAsState()
+                CharacterSelectScreen(
+                    isCharacterUnlocked = { it.unlockChallenge.isCompleted(stats) },
+                    onCharacterSelected = { characterClass ->
+                        currentScreen = Screen.MapSelect(characterClass)
+                    },
+                    onBack = { currentScreen = Screen.MainMenu }
+                )
+            }
+
+            is Screen.MapSelect -> {
+                val unlockState by mapUnlockManager.unlockState.collectAsState()
+                MapSelectScreen(
+                    characterClass = screen.characterClass,
+                    isMapUnlocked = { mapUnlockManager.isUnlocked(it, unlockState) },
+                    onMapSelected = { mapType ->
+                        currentScreen = Screen.Game(screen.characterClass, mapType)
+                    },
+                    onBack = { currentScreen = Screen.CharacterSelect }
+                )
+            }
+
+            is Screen.Game -> GameScreen(
+                characterClass = screen.characterClass,
+                mapType = screen.mapType,
+                onGameOver = { stats -> currentScreen = Screen.GameOver(stats) }
+            )
+
+            is Screen.GameOver -> GameOverScreen(
+                stats = screen.stats,
+                onPlayAgain = { currentScreen = Screen.CharacterSelect },
+                onMainMenu = { currentScreen = Screen.MainMenu }
+            )
+
+            is Screen.Settings -> SettingsScreen(
+                settingsRepository = settingsRepository,
+                soundManager = soundManager,
+                musicManager = musicManager,
+                onBack = { currentScreen = Screen.MainMenu }
+            )
+
+            is Screen.Shop -> ShopScreen(
+                suppliesManager = suppliesManager,
                 onBack = { currentScreen = Screen.MainMenu }
             )
         }
 
-        is Screen.MapSelect -> {
-            val unlockState by mapUnlockManager.unlockState.collectAsState()
-            MapSelectScreen(
-                characterClass = screen.characterClass,
-                isMapUnlocked = { mapUnlockManager.isUnlocked(it, unlockState) },
-                onMapSelected = { mapType ->
-                    currentScreen = Screen.Game(screen.characterClass, mapType)
-                },
-                onBack = { currentScreen = Screen.CharacterSelect }
-            )
+        // The splash overlays the menu and fades itself out on completion.
+        if (currentScreen is Screen.Splash) {
+            SplashScreen(onSplashFinished = { currentScreen = Screen.MainMenu })
         }
-
-        is Screen.Game -> GameScreen(
-            characterClass = screen.characterClass,
-            mapType = screen.mapType,
-            onGameOver = { stats -> currentScreen = Screen.GameOver(stats) }
-        )
-
-        is Screen.GameOver -> GameOverScreen(
-            stats = screen.stats,
-            onPlayAgain = { currentScreen = Screen.CharacterSelect },
-            onMainMenu = { currentScreen = Screen.MainMenu }
-        )
-
-        is Screen.Settings -> SettingsScreen(
-            settingsRepository = settingsRepository,
-            soundManager = soundManager,
-            musicManager = musicManager,
-            onBack = { currentScreen = Screen.MainMenu }
-        )
-
-        is Screen.Shop -> ShopScreen(
-            suppliesManager = suppliesManager,
-            onBack = { currentScreen = Screen.MainMenu }
-        )
     }
 }
