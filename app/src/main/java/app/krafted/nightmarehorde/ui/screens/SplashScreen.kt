@@ -6,6 +6,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
@@ -13,12 +15,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -49,9 +50,11 @@ private class Ember(
 
 /**
  * AAA "console intro" styled splash screen: a staged title reveal with a breathing
- * red bloom + chromatic offset, drifting embers/ash, and a slim determinate loader.
- * Calls [onSplashFinished] after ~3.2s. Everything is drawn in-code apart from the
- * existing background drawable.
+ * red bloom + chromatic offset, drifting embers/ash, and a slim determinate loader
+ * that tops out in sync with the title settling. Auto-advances after ~2.9s (or sooner
+ * via tap-to-skip, enabled once the title starts to appear), then fades the whole
+ * screen out over ~280ms before calling [onSplashFinished] (~3.2s total). Everything
+ * is drawn in-code apart from the existing background drawable.
  */
 @Composable
 fun SplashScreen(
@@ -72,18 +75,40 @@ fun SplashScreen(
         )
     }
 
-    // Hand control back to the host after the staged reveal has had time to read.
+    // Exit transition + tap-to-skip state. isExiting guards the exit so neither the
+    // auto-advance nor a tap can fire (or overlap) the fade-out more than once.
+    val exitAlpha = remember { Animatable(1f) }
+    var isExiting by remember { mutableStateOf(false) }
+    var canSkip by remember { mutableStateOf(false) }
+
+    // Allow tap-to-skip only after the title has begun to appear.
     LaunchedEffect(Unit) {
-        delay(3200)
+        delay(1200)
+        canSkip = true
+    }
+
+    // Auto-advance once the staged reveal has had time to read, then fall into the exit.
+    LaunchedEffect(Unit) {
+        delay(2900)
+        isExiting = true
+    }
+
+    // Idempotent exit: fade the whole splash out over 280ms, then hand control back.
+    LaunchedEffect(isExiting) {
+        if (!isExiting) return@LaunchedEffect
+        exitAlpha.animateTo(
+            targetValue = 0f,
+            animationSpec = tween(durationMillis = 280, easing = FastOutLinearInEasing)
+        )
         onSplashFinished()
     }
 
-    // Determinate load: 0 -> 1 over 2.9s, easing out so the count settles at 100%.
+    // Determinate load: 0 -> 1 over 2.0s, synced so the bar tops out as the title settles.
     val progressAnim = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
         progressAnim.animateTo(
             targetValue = 1f,
-            animationSpec = tween(durationMillis = 2900, easing = LinearOutSlowInEasing)
+            animationSpec = tween(durationMillis = 2000, easing = LinearOutSlowInEasing)
         )
     }
     val pct = (progressAnim.value * 100f).toInt().coerceIn(0, 100)
@@ -182,7 +207,15 @@ fun SplashScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .graphicsLayer { this.alpha = exitAlpha.value }
             .background(Color.Black)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                // Skip straight to the exit once past the minimum reveal window.
+                if (canSkip) isExiting = true
+            }
     ) {
         // 1. Cinematic vertical artwork.
         Image(
@@ -292,13 +325,13 @@ fun SplashScreen(
                         letterSpacing = 5.sp
                     ),
                     modifier = Modifier
-                        .alpha(studioAlpha)
+                        .graphicsLayer { alpha = studioAlpha }
                         .padding(bottom = 10.dp)
                 )
 
                 Box(
                     modifier = Modifier
-                        .alpha(studioAlpha)
+                        .graphicsLayer { alpha = studioAlpha }
                         .padding(bottom = 22.dp)
                         .width(180.dp)
                         .height(1.dp)
@@ -316,10 +349,13 @@ fun SplashScreen(
                 CinematicTitle(
                     text = "NIGHTMARE HORDE",
                     fontFamily = creepster,
-                    glow = glowPulse,
+                    glow = { glowPulse },
                     modifier = Modifier
-                        .alpha(titleAlpha)
-                        .scale(titleScale)
+                        .graphicsLayer {
+                            alpha = titleAlpha
+                            scaleX = titleScale
+                            scaleY = titleScale
+                        }
                         .padding(horizontal = 8.dp)
                 )
             }
@@ -329,7 +365,7 @@ fun SplashScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .alpha(uiAlpha)
+                    .graphicsLayer { alpha = uiAlpha }
                     .padding(bottom = 16.dp)
             ) {
                 Box(
@@ -365,7 +401,7 @@ fun SplashScreen(
                 ) {
                     Text(
                         text = "LOADING…",
-                        modifier = Modifier.alpha(loadingPulse),
+                        modifier = Modifier.graphicsLayer { alpha = loadingPulse },
                         style = TextStyle(
                             fontSize = 14.sp,
                             fontFamily = blackOpsOne,
@@ -414,68 +450,49 @@ fun SplashScreen(
 private fun CinematicTitle(
     text: String,
     fontFamily: FontFamily,
-    glow: Float,
+    glow: () -> Float,
     modifier: Modifier = Modifier
 ) {
-    val titleSize = 58.sp
-    val titleSpacing = 7.sp
+    // Shared geometry for every layer; each layer only overrides color + shadow.
+    val base = TextStyle(
+        fontSize = 58.sp,
+        fontFamily = fontFamily,
+        letterSpacing = 7.sp,
+        textAlign = TextAlign.Center
+    )
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         // Outer red bloom.
         Text(
             text = text,
-            textAlign = TextAlign.Center,
-            style = TextStyle(
-                fontSize = titleSize,
-                fontFamily = fontFamily,
-                letterSpacing = titleSpacing,
-                color = Color(0xFFFF1414).copy(alpha = 0.22f * glow),
+            style = base.copy(
+                color = Color(0xFFFF1414).copy(alpha = 0.22f * glow()),
                 shadow = Shadow(Color(0xFFFF0000), Offset(0f, 0f), 38f)
             )
         )
         // Inner red bloom.
         Text(
             text = text,
-            textAlign = TextAlign.Center,
-            style = TextStyle(
-                fontSize = titleSize,
-                fontFamily = fontFamily,
-                letterSpacing = titleSpacing,
-                color = Color(0xFFB00000).copy(alpha = 0.45f * glow),
+            style = base.copy(
+                color = Color(0xFFB00000).copy(alpha = 0.45f * glow()),
                 shadow = Shadow(Color(0xFF7A0000), Offset(0f, 0f), 16f)
             )
         )
         // Chromatic aberration: red shifted left, cyan shifted right.
         Text(
             text = text,
-            textAlign = TextAlign.Center,
             modifier = Modifier.offset(x = (-2.5).dp),
-            style = TextStyle(
-                fontSize = titleSize,
-                fontFamily = fontFamily,
-                letterSpacing = titleSpacing,
-                color = Color(0xFFFF2D2D).copy(alpha = 0.5f)
-            )
+            style = base.copy(color = Color(0xFFFF2D2D).copy(alpha = 0.5f))
         )
         Text(
             text = text,
-            textAlign = TextAlign.Center,
             modifier = Modifier.offset(x = 2.5.dp),
-            style = TextStyle(
-                fontSize = titleSize,
-                fontFamily = fontFamily,
-                letterSpacing = titleSpacing,
-                color = Color(0xFF1FE3FF).copy(alpha = 0.4f)
-            )
+            style = base.copy(color = Color(0xFF1FE3FF).copy(alpha = 0.4f))
         )
         // Crisp top layer.
         Text(
             text = text,
-            textAlign = TextAlign.Center,
-            style = TextStyle(
-                fontSize = titleSize,
-                fontFamily = fontFamily,
-                letterSpacing = titleSpacing,
+            style = base.copy(
                 color = Color(0xFFE8141C),
                 shadow = Shadow(Color(0xFF4A0000), Offset(2f, 4f), 8f)
             )
