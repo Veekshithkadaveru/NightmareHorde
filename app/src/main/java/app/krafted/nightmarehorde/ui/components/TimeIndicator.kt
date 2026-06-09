@@ -22,7 +22,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Fill
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -69,7 +68,6 @@ fun TimeIndicator(
             )
             .padding(horizontal = 10.dp, vertical = 5.dp)
     ) {
-        // Sun or Moon icon
         CelestialIcon(
             phase = phase,
             nightIntensity = nightIntensity,
@@ -77,7 +75,6 @@ fun TimeIndicator(
             modifier = Modifier.size(18.dp)
         )
 
-        // Phase label
         Text(
             text = phaseLabel,
             color = phaseColor,
@@ -85,10 +82,11 @@ fun TimeIndicator(
             fontWeight = FontWeight.Bold
         )
 
-        // Progress bar
-        PhaseProgressBar(
+        ProgressBar(
             progress = phaseProgress,
-            color = phaseColor,
+            fill = Brush.horizontalGradient(listOf(phaseColor.copy(alpha = 0.7f), phaseColor)),
+            trackColor = Color.White.copy(alpha = 0.15f),
+            cornerRadius = 2.dp,
             modifier = Modifier
                 .width(36.dp)
                 .height(4.dp)
@@ -112,10 +110,9 @@ private fun CelestialIcon(
         val radius = size.minDimension / 2f * 0.6f
 
         if (nightIntensity < 0.5f) {
-            // Sun: circle + rays
+            // Sun: a filled disc ringed by 8 rays.
             drawCircle(color = color, radius = radius, center = Offset(cx, cy), style = Fill)
 
-            // Draw 8 rays
             val rayLength = radius * 0.55f
             val rayStart = radius * 1.3f
             for (i in 0 until 8) {
@@ -140,40 +137,6 @@ private fun CelestialIcon(
                 radius = radius * 0.85f,
                 center = Offset(cx + radius * 0.45f, cy - radius * 0.2f),
                 style = Fill
-            )
-        }
-    }
-}
-
-/**
- * A thin horizontal progress bar for the current phase.
- */
-@Composable
-private fun PhaseProgressBar(
-    progress: Float,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    Canvas(modifier = modifier) {
-        val barHeight = size.height
-        val barWidth = size.width
-
-        // Background track
-        drawRoundRect(
-            color = Color.White.copy(alpha = 0.15f),
-            size = size,
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(barHeight / 2f)
-        )
-
-        // Filled progress
-        val fillWidth = barWidth * progress.coerceIn(0f, 1f)
-        if (fillWidth > 0f) {
-            drawRoundRect(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(color.copy(alpha = 0.7f), color)
-                ),
-                size = size.copy(width = fillWidth),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(barHeight / 2f)
             )
         }
     }

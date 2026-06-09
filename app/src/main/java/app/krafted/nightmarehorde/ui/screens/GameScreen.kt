@@ -133,7 +133,6 @@ fun GameScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        // Game surface
         GameSurface(
             entitiesProvider = {
                 frameTick
@@ -230,31 +229,14 @@ fun GameScreen(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 unlockedWeapons.forEach { weaponType ->
-                    val isActive = weaponType == activeWeaponType
-                    val bgColor = if (isActive) Color(0xFF444444) else Color(0xFF222222)
-                    val borderColor = if (isActive) Color(0xFFFFCC00) else Color(0xFF666666)
-
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(width = 44.dp, height = 28.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(bgColor)
-                            .border(1.5.dp, borderColor, RoundedCornerShape(6.dp))
-                            .clickable { viewModel.switchWeapon(weaponType) }
-                    ) {
-                        Text(
-                            text = getWeaponAbbreviation(weaponType),
-                            color = if (isActive) Color(0xFFFFCC00) else Color.White,
-                            fontSize = 10.sp,
-                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                            textAlign = TextAlign.Center
-                        )
-                    }
+                    WeaponChip(
+                        weaponType = weaponType,
+                        isActive = weaponType == activeWeaponType,
+                        onClick = { viewModel.switchWeapon(weaponType) }
+                    )
                 }
             }
 
-            // Ammo display
             Text(
                 text = if (currentAmmo == -1) "\u221E" else "$currentAmmo",
                 color = if (currentAmmo in 1..5) Color(0xFFFF4444) else Color.White,
@@ -264,7 +246,6 @@ fun GameScreen(
             )
         }
 
-        // Weapon unlock notification banner
         AnimatedVisibility(
             visible = showUnlockBanner,
             enter = fadeIn(),
@@ -288,7 +269,6 @@ fun GameScreen(
             )
         }
 
-        // Boss Health Bar (bottom-center, above joystick)
         BossHealthBar(
             bossName = bossState.name,
             currentHealth = bossState.currentHealth,
@@ -300,7 +280,6 @@ fun GameScreen(
                 .padding(bottom = 80.dp)
         )
 
-        // Virtual Joystick - bottom left corner
         VirtualJoystick(
             inputManager = viewModel.inputManager,
             modifier = Modifier
@@ -308,12 +287,36 @@ fun GameScreen(
                 .padding(24.dp)
         )
 
-        // Level-Up Screen overlay
         LevelUpScreen(
             isVisible = levelUpState.isShowing,
             level = levelUpState.level,
             upgrades = levelUpState.upgrades,
             onUpgradeSelected = { choice -> viewModel.selectUpgrade(choice) }
+        )
+    }
+}
+
+@Composable
+private fun WeaponChip(
+    weaponType: WeaponType,
+    isActive: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(width = 44.dp, height = 28.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(if (isActive) Color(0xFF444444) else Color(0xFF222222))
+            .border(1.5.dp, if (isActive) Color(0xFFFFCC00) else Color(0xFF666666), RoundedCornerShape(6.dp))
+            .clickable(onClick = onClick)
+    ) {
+        Text(
+            text = getWeaponAbbreviation(weaponType),
+            color = if (isActive) Color(0xFFFFCC00) else Color.White,
+            fontSize = 10.sp,
+            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+            textAlign = TextAlign.Center
         )
     }
 }

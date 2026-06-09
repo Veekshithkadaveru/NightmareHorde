@@ -40,9 +40,6 @@ class GestureHandler(
     private val inputManager: InputManager,
     private val scope: CoroutineScope
 ) {
-    companion object {
-    }
-    
     private var lastTapTime: Long = 0L
     private var lastTapPosition: Offset = Offset.Zero
     private var pendingTapJob: Job? = null

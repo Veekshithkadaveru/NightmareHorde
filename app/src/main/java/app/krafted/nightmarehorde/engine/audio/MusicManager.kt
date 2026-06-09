@@ -10,11 +10,11 @@ import javax.inject.Singleton
 @Singleton
 class MusicManager @Inject constructor(
     @ApplicationContext private val context: Context
-) {
+) : AudioManager {
     private var mediaPlayer: MediaPlayer? = null
     private var currentResId: Int = 0
 
-    var isMuted: Boolean = false
+    override var isMuted: Boolean = false
         set(value) {
             field = value
             if (value) {
@@ -24,7 +24,7 @@ class MusicManager @Inject constructor(
             }
         }
 
-    var volume: Float = 0.5f
+    override var volume: Float = 0.5f
         set(value) {
             field = value.coerceIn(0f, 1f)
             if (!isMuted) {
@@ -67,7 +67,7 @@ class MusicManager @Inject constructor(
         }
     }
 
-    fun release() {
+    override fun release() {
         mediaPlayer?.let {
             try { it.stop() } catch (_: IllegalStateException) {}
             it.release()

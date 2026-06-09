@@ -19,10 +19,6 @@ import kotlin.math.sqrt
  */
 class CollisionResponseSystem : GameSystem(priority = 55) {
 
-    private companion object {
-        const val TAG = "CollisionResponse"
-    }
-
     // Reusable buffers to avoid per-frame allocations
     private data class CollisionEntry(val entity: Entity, val transform: TransformComponent, val collider: ColliderComponent)
     private val obstacles = ArrayList<CollisionEntry>(64)
@@ -59,18 +55,11 @@ class CollisionResponseSystem : GameSystem(priority = 55) {
                 val dx = mover.transform.x - obs.transform.x
                 val dy = mover.transform.y - obs.transform.y
                 val distSq = dx * dx + dy * dy
-                val maxRange = getMaxExtent(mover.collider) + getMaxExtent(obs.collider)
+                val maxRange = mover.collider.collider.maxExtent + obs.collider.collider.maxExtent
                 if (distSq > maxRange * maxRange) continue
 
                 resolveOverlap(mover.transform, mover.collider, obs.transform, obs.collider)
             }
-        }
-    }
-
-    private fun getMaxExtent(collider: ColliderComponent): Float {
-        return when (val shape = collider.collider) {
-            is Collider.Circle -> shape.radius
-            is Collider.AABB -> maxOf(shape.halfWidth, shape.halfHeight)
         }
     }
 

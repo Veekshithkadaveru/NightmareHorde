@@ -1,36 +1,28 @@
 package app.krafted.nightmarehorde.ui.screens
 
 import android.widget.Toast
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CutCornerShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.krafted.nightmarehorde.R
+import app.krafted.nightmarehorde.ui.components.GameButton
+import app.krafted.nightmarehorde.ui.components.MenuBackdrop
+import app.krafted.nightmarehorde.ui.components.rememberPulseScale
+import app.krafted.nightmarehorde.ui.theme.rememberGameFonts
 import kotlinx.coroutines.delay
 
 @Composable
@@ -40,35 +32,21 @@ fun MainMenuScreen(
     onSettingsClicked: () -> Unit = {}
 ) {
     val context = LocalContext.current
-
-    val creepster = FontFamily(Font(R.font.creepster))
-    val blackOpsOne = FontFamily(Font(R.font.black_ops_one))
+    val fonts = rememberGameFonts()
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Background Image
-        Image(
-            painter = painterResource(id = R.drawable.menu_bg),
-            contentDescription = "Menu Background",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
-
-        // Dark Atmospheric Gradient Overlay
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Black.copy(alpha = 0.5f),
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.9f)
-                        )
-                    )
+        MenuBackdrop(
+            overlay = Brush.verticalGradient(
+                colors = listOf(
+                    Color.Black.copy(alpha = 0.5f),
+                    Color.Transparent,
+                    Color.Black.copy(alpha = 0.9f)
                 )
+            ),
+            contentDescription = "Menu Background"
         )
 
-        // Subtle Glitch/Flicker Effect for Title
+        // Title flicker: occasional brief dips in opacity mimic a failing neon sign.
         var isVisible by remember { mutableStateOf(true) }
         LaunchedEffect(Unit) {
             while (true) {
@@ -90,14 +68,12 @@ fun MainMenuScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            
-            // Title text with shadow and alpha change
             Text(
                 text = "NIGHTMARE HORDE",
                 style = TextStyle(
                     fontSize = 72.sp,
                     fontWeight = FontWeight.Normal,
-                    fontFamily = creepster,
+                    fontFamily = fonts.creepster,
                     letterSpacing = 8.sp,
                     color = Color.Red.copy(alpha = 0.9f),
                     shadow = Shadow(
@@ -113,7 +89,7 @@ fun MainMenuScreen(
                 style = TextStyle(
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Normal,
-                    fontFamily = blackOpsOne,
+                    fontFamily = fonts.blackOpsOne,
                     letterSpacing = 6.sp,
                     color = Color.White.copy(alpha = 0.8f),
                     shadow = Shadow(
@@ -125,11 +101,10 @@ fun MainMenuScreen(
                 modifier = Modifier.padding(bottom = 32.dp)
             )
 
-            // Menu Buttons
             PulseButton(
                 text = "START RUN",
                 isPrimary = true,
-                fontFamily = blackOpsOne,
+                fontFamily = fonts.blackOpsOne,
                 onClick = onPlayClicked
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -139,19 +114,19 @@ fun MainMenuScreen(
             ) {
                 MenuButton(
                     text = "UPGRADES",
-                    fontFamily = blackOpsOne,
+                    fontFamily = fonts.blackOpsOne,
                     onClick = onShopClicked,
                     modifier = Modifier.weight(1f)
                 )
                 MenuButton(
                     text = "LOADOUT",
-                    fontFamily = blackOpsOne,
+                    fontFamily = fonts.blackOpsOne,
                     onClick = { Toast.makeText(context, "Coming Soon: Phase F2", Toast.LENGTH_SHORT).show() },
                     modifier = Modifier.weight(1f)
                 )
                 MenuButton(
                     text = "SETTINGS",
-                    fontFamily = blackOpsOne,
+                    fontFamily = fonts.blackOpsOne,
                     onClick = onSettingsClicked,
                     modifier = Modifier.weight(1f)
                 )
@@ -162,36 +137,21 @@ fun MainMenuScreen(
 
 @Composable
 fun PulseButton(text: String, isPrimary: Boolean = false, fontFamily: FontFamily, onClick: () -> Unit) {
-    val infiniteTransition = rememberInfiniteTransition()
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        )
-    )
-
-    Box(
+    val pulse = rememberPulseScale(enabled = isPrimary)
+    GameButton(
+        onClick = onClick,
+        shape = CutCornerShape(12.dp),
+        fill = Brush.horizontalGradient(
+            colors = if (isPrimary) listOf(Color(0xFFFF3300), Color(0xFF990000))
+            else listOf(Color(0xFF333333), Color(0xFF111111))
+        ),
+        borderColor = if (isPrimary) Color(0xFFFFD700) else Color.DarkGray,
+        borderWidth = 3.dp,
+        innerScrim = Color.Black.copy(alpha = 0.2f),
         modifier = Modifier
-            .scale(if (isPrimary) pulseScale else 1f)
+            .scale(if (isPrimary) pulse else 1f)
             .widthIn(min = 280.dp)
             .height(64.dp)
-            .clip(CutCornerShape(12.dp))
-            .background(
-                Brush.horizontalGradient(
-                    colors = if (isPrimary) listOf(Color(0xFFFF3300), Color(0xFF990000))
-                    else listOf(Color(0xFF333333), Color(0xFF111111))
-                )
-            )
-            .border(
-                width = 3.dp,
-                color = if (isPrimary) Color(0xFFFFD700) else Color.DarkGray,
-                shape = CutCornerShape(12.dp)
-            )
-            .background(Color.Black.copy(alpha = 0.2f)) // slight inner shadow effect
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
@@ -213,23 +173,12 @@ fun PulseButton(text: String, isPrimary: Boolean = false, fontFamily: FontFamily
 
 @Composable
 fun MenuButton(text: String, fontFamily: FontFamily, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .height(55.dp)
-            .clip(CutCornerShape(8.dp))
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFF444444), Color(0xFF1A1A1A))
-                )
-            )
-            .border(
-                width = 2.dp,
-                color = Color.Gray,
-                shape = CutCornerShape(8.dp)
-            )
-            .background(Color.Black.copy(alpha = 0.3f))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
+    GameButton(
+        onClick = onClick,
+        fill = Brush.verticalGradient(listOf(Color(0xFF444444), Color(0xFF1A1A1A))),
+        borderColor = Color.Gray,
+        innerScrim = Color.Black.copy(alpha = 0.3f),
+        modifier = modifier.height(55.dp)
     ) {
         Text(
             text = text,

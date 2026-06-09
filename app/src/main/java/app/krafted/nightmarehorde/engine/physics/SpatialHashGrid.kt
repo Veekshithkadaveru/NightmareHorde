@@ -73,14 +73,9 @@ class SpatialHashGrid(
         // something is wrong (e.g. extreme position values). Skip the query.
         if ((maxCellX - minCellX) > 20 || (maxCellY - minCellY) > 20) return
 
-        for (cellX in minCellX..maxCellX) {
-            for (cellY in minCellY..maxCellY) {
-                val key = hashKeyFromCell(cellX, cellY)
-                cells[key]?.let { result.addAll(it) }
-            }
-        }
+        collectCells(minCellX, maxCellX, minCellY, maxCellY, result)
     }
-    
+
     /**
      * Query all entities within an AABB rectangle.
      */
@@ -103,14 +98,9 @@ class SpatialHashGrid(
 
         if ((maxCellX - minCellX) > 20 || (maxCellY - minCellY) > 20) return
 
-        for (cellX in minCellX..maxCellX) {
-            for (cellY in minCellY..maxCellY) {
-                val key = hashKeyFromCell(cellX, cellY)
-                cells[key]?.let { result.addAll(it) }
-            }
-        }
+        collectCells(minCellX, maxCellX, minCellY, maxCellY, result)
     }
-    
+
     /**
      * Get entities in the same cell as the given position (and neighboring cells).
      */
@@ -118,16 +108,28 @@ class SpatialHashGrid(
         nearbyResultBuffer.clear()
         val cellX = (x / cellSize).toInt()
         val cellY = (y / cellSize).toInt()
-        
-        // Check 3x3 grid of cells around the position
-        for (dx in -1..1) {
-            for (dy in -1..1) {
-                val key = hashKeyFromCell(cellX + dx, cellY + dy)
-                cells[key]?.let { nearbyResultBuffer.addAll(it) }
+
+        // 3x3 grid of cells around the position
+        collectCells(cellX - 1, cellX + 1, cellY - 1, cellY + 1, nearbyResultBuffer)
+
+        return nearbyResultBuffer.toList()
+    }
+
+    /**
+     * Append every entity stored in the inclusive cell-coordinate range to [result].
+     * Callers are responsible for any range/sanity checks before calling.
+     */
+    private fun collectCells(
+        minCellX: Int, maxCellX: Int,
+        minCellY: Int, maxCellY: Int,
+        result: MutableList<Entity>
+    ) {
+        for (cellX in minCellX..maxCellX) {
+            for (cellY in minCellY..maxCellY) {
+                val key = hashKeyFromCell(cellX, cellY)
+                cells[key]?.let { result.addAll(it) }
             }
         }
-        
-        return nearbyResultBuffer.toList()
     }
     
     /**

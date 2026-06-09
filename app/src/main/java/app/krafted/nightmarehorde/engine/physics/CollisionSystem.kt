@@ -81,14 +81,12 @@ class CollisionSystem(
     }
     
     /**
-     * Get the radius to use for spatial grid queries based on collider type.
+     * Get the radius to use for spatial grid queries based on collider extent.
+     * Doubled so the broad phase still catches collisions where the other
+     * entity's own extent reaches into this query range.
      */
-    private fun getQueryRadius(colliderComp: ColliderComponent): Float {
-        return when (val collider = colliderComp.collider) {
-            is Collider.Circle -> collider.radius * 2f // Query double radius to catch nearby
-            is Collider.AABB -> kotlin.math.max(collider.halfWidth, collider.halfHeight) * 2f
-        }
-    }
+    private fun getQueryRadius(colliderComp: ColliderComponent): Float =
+        colliderComp.collider.maxExtent * 2f
     
     /**
      * Check if two collider components should test for collision based on layers.

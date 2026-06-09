@@ -31,10 +31,7 @@ sealed class InputEvent {
  */
 @Singleton
 class InputManager @Inject constructor() {
-    
-    companion object {
-    }
-    
+
     // Movement direction from joystick (-1 to 1 on each axis)
     private val _movementDirection = MutableStateFlow(Vector2.ZERO)
     val movementDirection: StateFlow<Vector2> = _movementDirection.asStateFlow()

@@ -16,16 +16,15 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.krafted.nightmarehorde.R
 import app.krafted.nightmarehorde.data.local.SettingsRepository
 import app.krafted.nightmarehorde.engine.audio.MusicManager
 import app.krafted.nightmarehorde.engine.audio.SoundManager
-import androidx.compose.foundation.clickable
+import app.krafted.nightmarehorde.ui.components.BackButton
+import app.krafted.nightmarehorde.ui.components.DarkMenuBackground
+import app.krafted.nightmarehorde.ui.theme.rememberGameFonts
 
 @Composable
 fun SettingsScreen(
@@ -34,8 +33,9 @@ fun SettingsScreen(
     musicManager: MusicManager,
     onBack: () -> Unit
 ) {
-    val creepster = FontFamily(Font(R.font.creepster))
-    val blackOpsOne = FontFamily(Font(R.font.black_ops_one))
+    val fonts = rememberGameFonts()
+    val creepster = fonts.creepster
+    val blackOpsOne = fonts.blackOpsOne
 
     var musicVolume by remember { mutableFloatStateOf(settingsRepository.musicVolume) }
     var sfxVolume by remember { mutableFloatStateOf(settingsRepository.sfxVolume) }
@@ -46,16 +46,7 @@ fun SettingsScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color.Black,
-                        Color(0xFF0D0D0D),
-                        Color(0xFF1A0A0A),
-                        Color.Black
-                    )
-                )
-            )
+            .background(DarkMenuBackground)
     ) {
         Column(
             modifier = Modifier
@@ -64,7 +55,6 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Title
             Text(
                 text = "SETTINGS",
                 style = TextStyle(
@@ -80,7 +70,6 @@ fun SettingsScreen(
                 modifier = Modifier.padding(bottom = 4.dp)
             )
 
-            // Gold divider
             Box(
                 modifier = Modifier
                     .width(320.dp)
@@ -90,7 +79,6 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Music Volume
             SettingsSliderRow(
                 label = "MUSIC VOLUME",
                 value = musicVolume,
@@ -104,7 +92,6 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // SFX Volume
             SettingsSliderRow(
                 label = "SFX VOLUME",
                 value = sfxVolume,
@@ -118,7 +105,6 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Show FPS toggle
             SettingsToggleRow(
                 label = "SHOW FPS",
                 checked = showFps,
@@ -128,7 +114,6 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Screen Shake toggle
             SettingsToggleRow(
                 label = "SCREEN SHAKE",
                 checked = screenShake,
@@ -138,7 +123,6 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Performance Mode toggle
             SettingsToggleRow(
                 label = "30 FPS MODE",
                 subLabel = "Improves performance on older devices",
@@ -150,41 +134,13 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(48.dp))
         }
 
-        // Back button — bottom left
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(24.dp)
-                .height(52.dp)
-                .widthIn(min = 160.dp)
-                .clip(CutCornerShape(10.dp))
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(Color(0xFF333333), Color(0xFF111111))
-                    )
-                )
-                .border(2.dp, Color(0xFFFFD700), CutCornerShape(10.dp))
-                .clickable(onClick = onBack),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "◄  BACK",
-                fontFamily = blackOpsOne,
-                fontSize = 18.sp,
-                color = Color.White,
-                letterSpacing = 4.sp
-            )
-        }
+        BackButton(blackOpsOne = blackOpsOne, onClick = onBack)
     }
 }
 
+/** Shared framed panel behind every settings row. */
 @Composable
-private fun SettingsSliderRow(
-    label: String,
-    value: Float,
-    onValueChange: (Float) -> Unit,
-    blackOpsOne: FontFamily
-) {
+private fun SettingsCard(content: @Composable () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -197,6 +153,18 @@ private fun SettingsSliderRow(
             .border(1.dp, Color(0xFF3A1010), CutCornerShape(12.dp))
             .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
+        content()
+    }
+}
+
+@Composable
+private fun SettingsSliderRow(
+    label: String,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    blackOpsOne: FontFamily
+) {
+    SettingsCard {
         Column {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -240,18 +208,7 @@ private fun SettingsToggleRow(
     blackOpsOne: FontFamily,
     subLabel: String? = null
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(CutCornerShape(12.dp))
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFF1A1A1A), Color(0xFF111111))
-                )
-            )
-            .border(1.dp, Color(0xFF3A1010), CutCornerShape(12.dp))
-            .padding(horizontal = 20.dp, vertical = 16.dp)
-    ) {
+    SettingsCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,

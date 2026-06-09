@@ -33,9 +33,7 @@ class ParticleRenderer @Inject constructor() {
 
             // Cull off-screen particles (use larger margin for elongated shapes)
             val margin = if (particle.width > 0f) particle.width else 20f
-            if (transform.x < visibleBounds.left - margin || transform.x > visibleBounds.right + margin ||
-                transform.y < visibleBounds.top - margin || transform.y > visibleBounds.bottom + margin
-            ) return@forEach
+            if (!visibleBounds.contains(transform.x, transform.y, margin)) return@forEach
 
             var screenX = 0f
             var screenY = 0f

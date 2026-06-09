@@ -5,17 +5,26 @@ package app.krafted.nightmarehorde.engine.physics
  * Used by ColliderComponent to define entity collision bounds.
  */
 sealed class Collider {
-    
+
+    /**
+     * Largest distance from the entity center to the collider's edge.
+     * Used by broad-phase systems to size proximity/query ranges uniformly
+     * across shapes without caring about the concrete collider type.
+     */
+    abstract val maxExtent: Float
+
     /**
      * Circular collider - best for characters, projectiles, and pickups.
      * @param radius The radius of the circle in world units
      */
     data class Circle(val radius: Float) : Collider() {
+        override val maxExtent: Float get() = radius
+
         init {
             require(radius > 0f) { "Circle radius must be positive" }
         }
     }
-    
+
     /**
      * Axis-Aligned Bounding Box - best for walls, platforms, and rectangular objects.
      * @param width The width of the box (centered on entity position)
@@ -24,7 +33,8 @@ sealed class Collider {
     data class AABB(val width: Float, val height: Float) : Collider() {
         val halfWidth: Float get() = width / 2f
         val halfHeight: Float get() = height / 2f
-        
+        override val maxExtent: Float get() = kotlin.math.max(halfWidth, halfHeight)
+
         init {
             require(width > 0f && height > 0f) { "AABB dimensions must be positive" }
         }

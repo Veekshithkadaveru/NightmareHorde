@@ -11,12 +11,12 @@ import javax.inject.Singleton
 @Singleton
 class SoundManager @Inject constructor(
     @ApplicationContext private val context: Context
-) {
+) : AudioManager {
     private val soundPool: SoundPool
     private val soundMap = mutableMapOf<Int, Int>()
 
-    var isMuted: Boolean = false
-    var volume: Float = 1.0f
+    override var isMuted: Boolean = false
+    override var volume: Float = 1.0f
 
     init {
         val audioAttributes = AudioAttributes.Builder()
@@ -58,7 +58,7 @@ class SoundManager @Inject constructor(
         soundPool.play(soundId, volume, volume, 1, 0, 1f)
     }
 
-    fun release() {
+    override fun release() {
         soundPool.release()
     }
 }

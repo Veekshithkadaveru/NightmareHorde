@@ -78,7 +78,6 @@ fun LevelUpScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(24.dp)
             ) {
-                // Title
                 val infiniteTransition = rememberInfiniteTransition(label = "levelup_glow")
                 val glowAlpha by infiniteTransition.animateFloat(
                     initialValue = 0.6f,
@@ -106,7 +105,6 @@ fun LevelUpScreen(
                     modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
                 )
 
-                // Upgrade cards
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxWidth(),
@@ -171,7 +169,6 @@ private fun UpgradeCard(
             .clickable { onClick() }
             .padding(12.dp)
     ) {
-        // Icon
         Image(
             painter = painterResource(id = upgrade.iconRes),
             contentDescription = upgrade.name,
@@ -183,7 +180,6 @@ private fun UpgradeCard(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Name
         Text(
             text = upgrade.name,
             color = Color(upgrade.rarity.color),
@@ -203,7 +199,6 @@ private fun UpgradeCard(
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center
             )
-            // Dot indicators
             Spacer(modifier = Modifier.height(2.dp))
             Row(
                 horizontalArrangement = Arrangement.Center,
@@ -211,9 +206,9 @@ private fun UpgradeCard(
             ) {
                 for (i in 1..upgrade.maxLevel) {
                     val dotColor = when {
-                        i <= choice.currentLevel -> Color(0xFFFFD700) // Already picked
-                        i == choice.nextLevel -> Color(0xFFFFD700).copy(alpha = 0.5f) // About to pick
-                        else -> Color.White.copy(alpha = 0.2f) // Not yet
+                        i <= choice.currentLevel -> Color(0xFFFFD700) // already picked
+                        i == choice.nextLevel -> Color(0xFFFFD700).copy(alpha = 0.5f) // about to pick
+                        else -> Color.White.copy(alpha = 0.2f) // not yet earned
                     }
                     Box(
                         modifier = Modifier
@@ -230,7 +225,6 @@ private fun UpgradeCard(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // Description (level-aware)
         Text(
             text = choice.displayDescription,
             color = Color.White.copy(alpha = 0.85f),
@@ -242,7 +236,6 @@ private fun UpgradeCard(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Rarity badge
         Text(
             text = upgrade.rarity.name,
             color = Color(upgrade.rarity.color),

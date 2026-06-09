@@ -20,22 +20,24 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.krafted.nightmarehorde.R
 import app.krafted.nightmarehorde.game.data.PermanentUpgrade
 import app.krafted.nightmarehorde.game.systems.SuppliesManager
+import app.krafted.nightmarehorde.ui.components.BackButton
+import app.krafted.nightmarehorde.ui.components.DarkMenuBackground
+import app.krafted.nightmarehorde.ui.theme.rememberGameFonts
 
 @Composable
 fun ShopScreen(
     suppliesManager: SuppliesManager,
     onBack: () -> Unit
 ) {
-    val creepster = FontFamily(Font(R.font.creepster))
-    val blackOpsOne = FontFamily(Font(R.font.black_ops_one))
+    val fonts = rememberGameFonts()
+    val creepster = fonts.creepster
+    val blackOpsOne = fonts.blackOpsOne
 
     val supplies by suppliesManager.supplies.collectAsState()
     val levels by suppliesManager.upgradeLevels.collectAsState()
@@ -43,16 +45,7 @@ fun ShopScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color.Black,
-                        Color(0xFF0D0D0D),
-                        Color(0xFF1A0A0A),
-                        Color.Black
-                    )
-                )
-            )
+            .background(DarkMenuBackground)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
 
@@ -134,29 +127,7 @@ fun ShopScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(24.dp)
-                .height(52.dp)
-                .widthIn(min = 160.dp)
-                .clip(CutCornerShape(10.dp))
-                .background(
-                    Brush.horizontalGradient(listOf(Color(0xFF333333), Color(0xFF111111)))
-                )
-                .border(2.dp, Color(0xFFFFD700), CutCornerShape(10.dp))
-                .clickable(onClick = onBack),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "◄  BACK",
-                fontFamily = blackOpsOne,
-                fontSize = 18.sp,
-                color = Color.White,
-                letterSpacing = 4.sp
-            )
-        }
-
+        BackButton(blackOpsOne = blackOpsOne, onClick = onBack)
     }
 }
 
