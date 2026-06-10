@@ -39,11 +39,5 @@ class MapUnlockManager @Inject constructor(
         else -> false
     }
 
-    fun reset() {
-        saveManager.update { save ->
-            save.copy(stats = save.stats.copy(totalBossKills = 0))
-        }
-    }
-
     data class UnlockState(val totalBossKills: Int, val totalSuppliesEarned: Int)
 }

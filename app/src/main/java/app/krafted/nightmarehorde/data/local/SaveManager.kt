@@ -5,6 +5,8 @@ import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -29,8 +31,8 @@ class SaveManager @Inject constructor(
     val currentSave: SaveData get() = _saveFlow.value
 
     fun save() {
-        _saveFlow.value = currentSave.copy(lastSavedTimestamp = System.currentTimeMillis())
-        val serialized = json.encodeToString(SaveData.serializer(), currentSave)
+        val stamped = _saveFlow.updateAndGet { it.copy(lastSavedTimestamp = System.currentTimeMillis()) }
+        val serialized = json.encodeToString(SaveData.serializer(), stamped)
         val encrypted = encryption.encrypt(serialized)
         prefs.edit().putString(KEY_ENCRYPTED_SAVE, encrypted).apply()
     }
@@ -55,7 +57,7 @@ class SaveManager @Inject constructor(
     }
 
     fun update(transform: (SaveData) -> SaveData) {
-        _saveFlow.value = transform(_saveFlow.value)
+        _saveFlow.update(transform)
         save()
     }
 }

@@ -544,6 +544,7 @@ class GameViewModel @Inject constructor(
      * upgrade choices when the player has a pending level-up.
      */
     private suspend fun runHudObserver() {
+        var lastEntityCountKeyMs = 0L
         while (isGameRunning) {
             playerEntity?.let { player ->
                 val health = player.getComponent(HealthComponent::class)
@@ -581,8 +582,13 @@ class GameViewModel @Inject constructor(
                     }
                 }
             }
-            // Track entity count for crash diagnostics (high counts may cause OOM/ANR)
-            crashlytics.setCustomKey("entity_count", gameLoop.getEntitiesSnapshot().size)
+            // Track entity count for crash diagnostics (high counts may cause OOM/ANR).
+            // Throttled to ~1Hz so the snapshot/setCustomKey work doesn't run every 16ms tick.
+            val nowMs = System.currentTimeMillis()
+            if (nowMs - lastEntityCountKeyMs >= 1000L) {
+                lastEntityCountKeyMs = nowMs
+                crashlytics.setCustomKey("entity_count", gameLoop.getEntitiesSnapshot().size)
+            }
 
             // Single atomic snapshot (safe-read — may be null during teardown)
             dayNightCycle?.let { dnc ->
@@ -633,7 +639,7 @@ class GameViewModel @Inject constructor(
             // Log game over to Firebase Analytics
             analytics.logEvent("run_end", Bundle().apply {
                 putInt("kills", _killCount.value)
-                putFloat("time_survived", elapsedTime)
+                putDouble("time_survived", elapsedTime.toDouble())
                 putInt("bosses_defeated", bossesDefeated)
                 putInt("level_reached", _xpState.value.currentLevel)
             })
@@ -641,7 +647,7 @@ class GameViewModel @Inject constructor(
             // Track early deaths to identify tutorials/balancing needs
             if (elapsedTime < 180f) { // Under 3 minutes
                 analytics.logEvent("early_death", Bundle().apply {
-                    putFloat("time_survived", elapsedTime)
+                    putDouble("time_survived", elapsedTime.toDouble())
                     putString("map", currentMapType?.name ?: "UNKNOWN")
                 })
             }
@@ -787,7 +793,7 @@ class GameViewModel @Inject constructor(
         analytics.logEvent("weapon_evolved", Bundle().apply {
             putString("base_weapon", recipe.baseWeaponType.name)
             putString("evolved_weapon", recipe.displayName)
-            putFloat("time_elapsed", waveSpawner.elapsedGameTime)
+            putDouble("time_elapsed", waveSpawner.elapsedGameTime.toDouble())
         })
     }
 
@@ -806,7 +812,7 @@ class GameViewModel @Inject constructor(
                 analytics.logEvent("synergy_activated", Bundle().apply {
                     putString("synergy_id", synergy.id)
                     putString("synergy_name", synergy.name)
-                    putFloat("time_elapsed", waveSpawner.elapsedGameTime)
+                    putDouble("time_elapsed", waveSpawner.elapsedGameTime.toDouble())
                 })
             }
         }
@@ -962,7 +968,7 @@ class GameViewModel @Inject constructor(
         // Log boss defeated event
         analytics.logEvent("boss_defeated", Bundle().apply {
             putString("boss_type", bossComp.bossType.name)
-            putFloat("time_elapsed", waveSpawner.elapsedGameTime)
+            putDouble("time_elapsed", waveSpawner.elapsedGameTime.toDouble())
         })
 
         crashlytics.setCustomKey("boss_active", false)
