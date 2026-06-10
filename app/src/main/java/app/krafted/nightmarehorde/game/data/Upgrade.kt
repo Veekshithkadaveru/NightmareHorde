@@ -239,14 +239,7 @@ object Upgrades {
             iconRes = R.drawable.upgrade_rapid_fire, // placeholder
             maxLevel = 3,
             category = UpgradeCategory.DRONE_GRANT,
-            apply = { ctx ->
-                val dm = ctx.droneManager ?: return@Upgrade
-                if (dm.hasDroneType(DroneType.SCATTER)) {
-                    dm.upgradeDrone(DroneType.SCATTER)
-                } else {
-                    dm.grantDrone(DroneType.SCATTER, ctx.playerEntity)
-                }
-            }
+            apply = { ctx -> ctx.droneManager?.grantOrUpgradeDrone(DroneType.SCATTER, ctx.playerEntity) }
         ),
         Upgrade(
             id = "drone_gunner_upgrade",
@@ -298,14 +291,7 @@ object Upgrades {
             iconRes = R.drawable.upgrade_incendiary, // placeholder
             maxLevel = 3,
             category = UpgradeCategory.DRONE_GRANT,
-            apply = { ctx ->
-                val dm = ctx.droneManager ?: return@Upgrade
-                if (dm.hasDroneType(DroneType.INFERNO)) {
-                    dm.upgradeDrone(DroneType.INFERNO)
-                } else {
-                    dm.grantDrone(DroneType.INFERNO, ctx.playerEntity)
-                }
-            }
+            apply = { ctx -> ctx.droneManager?.grantOrUpgradeDrone(DroneType.INFERNO, ctx.playerEntity) }
         ),
         Upgrade(
             id = "drone_arc",
@@ -315,14 +301,7 @@ object Upgrades {
             iconRes = R.drawable.upgrade_steel_plating, // placeholder
             maxLevel = 3,
             category = UpgradeCategory.DRONE_GRANT,
-            apply = { ctx ->
-                val dm = ctx.droneManager ?: return@Upgrade
-                if (dm.hasDroneType(DroneType.ARC)) {
-                    dm.upgradeDrone(DroneType.ARC)
-                } else {
-                    dm.grantDrone(DroneType.ARC, ctx.playerEntity)
-                }
-            }
+            apply = { ctx -> ctx.droneManager?.grantOrUpgradeDrone(DroneType.ARC, ctx.playerEntity) }
         ),
 
         // ─── Legendary Upgrades ─────────────────────────────────────────────

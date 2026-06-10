@@ -466,144 +466,149 @@ class GameViewModel @Inject constructor(
 
         gameLoop.start(viewModelScope)
 
-        // ─── Spawning Loop (uses authoritative nanoTime clock) ────────────
-        spawnJob = viewModelScope.launch(crashHandler) {
-            while (isGameRunning) {
-                val spawnInterval = waveSpawner.calculateSpawnInterval()
-                kotlinx.coroutines.delay(spawnInterval)
+        // Background loops; all three are cancelled in stopGame().
+        spawnJob = viewModelScope.launch(crashHandler) { runSpawnLoop() }
+        hudObserverJob = viewModelScope.launch(crashHandler) { runHudObserver() }
+        doubleTapJob = viewModelScope.launch(crashHandler) {
+            inputManager.doubleTapEvents.collect { }
+        }
+    }
 
-                if (!isGameRunning) break
+    /**
+     * Authoritative spawn loop driven by the wave spawner's nanoTime clock:
+     * advances the game timer, grants the wave-3 drone, checks for bosses, and
+     * spawns/despawns the zombie horde. Idles while the game is paused.
+     */
+    private suspend fun runSpawnLoop() {
+        while (isGameRunning) {
+            val spawnInterval = waveSpawner.calculateSpawnInterval()
+            kotlinx.coroutines.delay(spawnInterval)
 
-                // Hibernate while the game is paused (e.g. level-up screen)
-                while (gameLoop.isPaused && isGameRunning) {
-                    kotlinx.coroutines.delay(50)
+            if (!isGameRunning) break
+
+            // Hibernate while the game is paused (e.g. level-up screen)
+            while (gameLoop.isPaused && isGameRunning) {
+                kotlinx.coroutines.delay(50)
+            }
+            if (!isGameRunning) break
+
+            waveSpawner.tick()
+            _gameTime.value = waveSpawner.elapsedGameTime
+
+            // ─── Wave 3 Gunner Drone Grant ───────────────────────
+            if (!droneGrantedWave3 && waveSpawner.elapsedGameTime >= 90f) {
+                droneGrantedWave3 = true
+                playerEntity?.let { droneManager?.grantDrone(DroneType.GUNNER, it) }
+            }
+
+            checkBossSpawn()
+
+            // A boss fight pauses normal spawning, but distant zombies still despawn.
+            if (isBossFightActive) {
+                val pt = playerEntity?.getComponent(TransformComponent::class)
+                if (pt != null) {
+                    waveSpawner.despawnDistantZombies(pt)
                 }
-                if (!isGameRunning) break
+                continue
+            }
 
-                // Update authoritative timer
-                waveSpawner.tick()
-                _gameTime.value = waveSpawner.elapsedGameTime
+            // Refresh zombie count once per tick (not per batch spawn)
+            waveSpawner.refreshZombieCount()
+            val maxEnemies = waveSpawner.calculateMaxEnemies()
 
-                // ─── Wave 3 Gunner Drone Grant ───────────────────────
-                if (!droneGrantedWave3 && waveSpawner.elapsedGameTime >= 90f) {
-                    droneGrantedWave3 = true
-                    playerEntity?.let { droneManager?.grantDrone(DroneType.GUNNER, it) }
-                }
-
-                // ─── Boss Spawn Check ──────────────────────────────────
-                checkBossSpawn()
-
-                // If a boss fight is active, pause normal zombie spawning
-                if (isBossFightActive) {
-                    // Still despawn distant zombies during boss fight
-                    val pt = playerEntity?.getComponent(TransformComponent::class)
-                    if (pt != null) {
-                        waveSpawner.despawnDistantZombies(pt)
-                    }
-                    continue
-                }
-
-                // ─── Normal Zombie Spawning ────────────────────────────
-                // Refresh zombie count once per tick (not per batch spawn)
-                waveSpawner.refreshZombieCount()
-                val maxEnemies = waveSpawner.calculateMaxEnemies()
-
-                if (waveSpawner.cachedZombieCount < maxEnemies) {
-                    val batchSize = waveSpawner.calculateBatchSize()
-                    val playerTransform = playerEntity?.getComponent(TransformComponent::class)
-                    if (playerTransform != null) {
-                        // Use cached count + local counter to avoid re-scanning
-                        var spawnedThisTick = 0
-                        repeat(batchSize) {
-                            if (waveSpawner.cachedZombieCount + spawnedThisTick < maxEnemies) {
-                                waveSpawner.spawnZombieOffScreen(playerTransform)
-                                spawnedThisTick++
-                            }
-                        }
-                    }
-                }
-
-                // Despawn distant zombies
+            if (waveSpawner.cachedZombieCount < maxEnemies) {
+                val batchSize = waveSpawner.calculateBatchSize()
                 val playerTransform = playerEntity?.getComponent(TransformComponent::class)
                 if (playerTransform != null) {
-                    waveSpawner.despawnDistantZombies(playerTransform)
-                }
-            }
-        }
-
-        // ─── HUD Observer ─────────────────────────────────────────────────
-        hudObserverJob = viewModelScope.launch(crashHandler) {
-            while (isGameRunning) {
-                playerEntity?.let { player ->
-                    val health = player.getComponent(HealthComponent::class)
-                    if (health != null) {
-                        _playerHealth.value = Pair(health.currentHealth, health.maxHealth)
-                    }
-                    weaponManager.refreshHudState(player)
-
-                    // ─── XP / Level-Up HUD ─────────────────────────────
-                    val xpComp = player.getComponent(XPComponent::class)
-                    if (xpComp != null) {
-                        _xpState.value = XPState(
-                            currentXP = xpComp.currentXP,
-                            xpToNextLevel = xpComp.xpToNextLevel,
-                            currentLevel = xpComp.currentLevel,
-                            xpProgress = xpComp.xpProgress
-                        )
-
-                        // Check for level-up pending
-                        if (xpComp.levelUpPending && !_levelUpState.value.isShowing) {
-                            // Pause game and show level-up UI
-                            gameLoop.pause()
-                            waveSpawner.onPause()
-                            val stats = player.getComponent(StatsComponent::class)
-                            val inventory = player.getComponent(WeaponInventoryComponent::class)
-                            val options = upgradePool.getRandomUpgrades(
-                                count = 3,
-                                luck = stats?.luck ?: 0f,
-                                droneManager = droneManager,
-                                weaponInventory = inventory
-                            )
-                            _levelUpState.value = LevelUpState(
-                                isShowing = true,
-                                level = xpComp.currentLevel + 1,
-                                upgrades = options
-                            )
-                            soundManager.playSound(R.raw.sfx_level_up)
+                    // Use cached count + local counter to avoid re-scanning
+                    var spawnedThisTick = 0
+                    repeat(batchSize) {
+                        if (waveSpawner.cachedZombieCount + spawnedThisTick < maxEnemies) {
+                            waveSpawner.spawnZombieOffScreen(playerTransform)
+                            spawnedThisTick++
                         }
                     }
                 }
-                // Track entity count for crash diagnostics (high counts may cause OOM/ANR)
-                crashlytics.setCustomKey("entity_count", gameLoop.getEntitiesSnapshot().size)
+            }
 
-                // Update day/night HUD state as a single atomic snapshot
-                // (safe-read — may be null during teardown)
-                dayNightCycle?.let { dnc ->
-                    _dayNightState.value = DayNightState(
-                        phase = dnc.currentPhase,
-                        nightIntensity = dnc.nightIntensity,
-                        phaseProgress = dnc.phaseProgress,
-                        overlayAlpha = dnc.overlayAlpha
-                    )
-                }
-
-                // Update boss HUD state
-                updateBossHudState()
-
-                // Update drone HUD state
-                droneManager?.let { dm ->
-                    dm.refreshHudState()
-                    _droneHudState.value = dm.droneHudState.value
-                    _droneUnlockNotification.value = dm.droneUnlockNotification.value
-                }
-
-                kotlinx.coroutines.delay(16)
+            val playerTransform = playerEntity?.getComponent(TransformComponent::class)
+            if (playerTransform != null) {
+                waveSpawner.despawnDistantZombies(playerTransform)
             }
         }
+    }
 
-        doubleTapJob = viewModelScope.launch(crashHandler) {
-            inputManager.doubleTapEvents.collect { position ->
+    /**
+     * Polls player/boss/drone/day-night state ~60fps and publishes it to the HUD
+     * StateFlows. Also drives the level-up gate: pausing the loop and presenting
+     * upgrade choices when the player has a pending level-up.
+     */
+    private suspend fun runHudObserver() {
+        var lastEntityCountKeyMs = 0L
+        while (isGameRunning) {
+            playerEntity?.let { player ->
+                val health = player.getComponent(HealthComponent::class)
+                if (health != null) {
+                    _playerHealth.value = Pair(health.currentHealth, health.maxHealth)
+                }
+                weaponManager.refreshHudState(player)
+
+                val xpComp = player.getComponent(XPComponent::class)
+                if (xpComp != null) {
+                    _xpState.value = XPState(
+                        currentXP = xpComp.currentXP,
+                        xpToNextLevel = xpComp.xpToNextLevel,
+                        currentLevel = xpComp.currentLevel,
+                        xpProgress = xpComp.xpProgress
+                    )
+
+                    if (xpComp.levelUpPending && !_levelUpState.value.isShowing) {
+                        gameLoop.pause()
+                        waveSpawner.onPause()
+                        val stats = player.getComponent(StatsComponent::class)
+                        val inventory = player.getComponent(WeaponInventoryComponent::class)
+                        val options = upgradePool.getRandomUpgrades(
+                            count = 3,
+                            luck = stats?.luck ?: 0f,
+                            droneManager = droneManager,
+                            weaponInventory = inventory
+                        )
+                        _levelUpState.value = LevelUpState(
+                            isShowing = true,
+                            level = xpComp.currentLevel + 1,
+                            upgrades = options
+                        )
+                        soundManager.playSound(R.raw.sfx_level_up)
+                    }
+                }
             }
+            // Track entity count for crash diagnostics (high counts may cause OOM/ANR).
+            // Throttled to ~1Hz so the snapshot/setCustomKey work doesn't run every 16ms tick.
+            val nowMs = System.currentTimeMillis()
+            if (nowMs - lastEntityCountKeyMs >= 1000L) {
+                lastEntityCountKeyMs = nowMs
+                crashlytics.setCustomKey("entity_count", gameLoop.getEntitiesSnapshot().size)
+            }
+
+            // Single atomic snapshot (safe-read — may be null during teardown)
+            dayNightCycle?.let { dnc ->
+                _dayNightState.value = DayNightState(
+                    phase = dnc.currentPhase,
+                    nightIntensity = dnc.nightIntensity,
+                    phaseProgress = dnc.phaseProgress,
+                    overlayAlpha = dnc.overlayAlpha
+                )
+            }
+
+            updateBossHudState()
+
+            droneManager?.let { dm ->
+                dm.refreshHudState()
+                _droneHudState.value = dm.droneHudState.value
+                _droneUnlockNotification.value = dm.droneUnlockNotification.value
+            }
+
+            kotlinx.coroutines.delay(16)
         }
     }
 
@@ -634,7 +639,7 @@ class GameViewModel @Inject constructor(
             // Log game over to Firebase Analytics
             analytics.logEvent("run_end", Bundle().apply {
                 putInt("kills", _killCount.value)
-                putFloat("time_survived", elapsedTime)
+                putDouble("time_survived", elapsedTime.toDouble())
                 putInt("bosses_defeated", bossesDefeated)
                 putInt("level_reached", _xpState.value.currentLevel)
             })
@@ -642,7 +647,7 @@ class GameViewModel @Inject constructor(
             // Track early deaths to identify tutorials/balancing needs
             if (elapsedTime < 180f) { // Under 3 minutes
                 analytics.logEvent("early_death", Bundle().apply {
-                    putFloat("time_survived", elapsedTime)
+                    putDouble("time_survived", elapsedTime.toDouble())
                     putString("map", currentMapType?.name ?: "UNKNOWN")
                 })
             }
@@ -788,7 +793,7 @@ class GameViewModel @Inject constructor(
         analytics.logEvent("weapon_evolved", Bundle().apply {
             putString("base_weapon", recipe.baseWeaponType.name)
             putString("evolved_weapon", recipe.displayName)
-            putFloat("time_elapsed", waveSpawner.elapsedGameTime)
+            putDouble("time_elapsed", waveSpawner.elapsedGameTime.toDouble())
         })
     }
 
@@ -807,7 +812,7 @@ class GameViewModel @Inject constructor(
                 analytics.logEvent("synergy_activated", Bundle().apply {
                     putString("synergy_id", synergy.id)
                     putString("synergy_name", synergy.name)
-                    putFloat("time_elapsed", waveSpawner.elapsedGameTime)
+                    putDouble("time_elapsed", waveSpawner.elapsedGameTime.toDouble())
                 })
             }
         }
@@ -963,7 +968,7 @@ class GameViewModel @Inject constructor(
         // Log boss defeated event
         analytics.logEvent("boss_defeated", Bundle().apply {
             putString("boss_type", bossComp.bossType.name)
-            putFloat("time_elapsed", waveSpawner.elapsedGameTime)
+            putDouble("time_elapsed", waveSpawner.elapsedGameTime.toDouble())
         })
 
         crashlytics.setCustomKey("boss_active", false)

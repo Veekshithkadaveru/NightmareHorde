@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import app.krafted.nightmarehorde.engine.rendering.SpriteSheet
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -17,11 +18,14 @@ import javax.inject.Singleton
 class AssetManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
+    // ConcurrentHashMap: preload runs on Dispatchers.IO while the game-loop/render
+    // threads read concurrently. Note these caches never store null, so a failed load
+    // returns null without caching (see getBitmap/getSpriteSheet).
     /** Cache of loaded ImageBitmaps by texture key */
-    private val bitmapCache = mutableMapOf<String, ImageBitmap>()
-    
+    private val bitmapCache = ConcurrentHashMap<String, ImageBitmap>()
+
     /** Cache of sprite sheets by key */
-    private val spriteSheetCache = mutableMapOf<String, SpriteSheet>()
+    private val spriteSheetCache = ConcurrentHashMap<String, SpriteSheet>()
     
     /**
      * Get a bitmap by resource name (without extension).

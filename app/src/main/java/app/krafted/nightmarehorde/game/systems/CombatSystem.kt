@@ -9,6 +9,7 @@ import app.krafted.nightmarehorde.engine.core.components.ColliderComponent
 import app.krafted.nightmarehorde.engine.core.components.CollisionLayer
 import app.krafted.nightmarehorde.engine.core.components.HealthComponent
 import app.krafted.nightmarehorde.engine.core.components.ObstacleTagComponent
+import app.krafted.nightmarehorde.engine.core.components.PlayerTagComponent
 import app.krafted.nightmarehorde.engine.core.components.ProjectileComponent
 import app.krafted.nightmarehorde.engine.core.components.StatsComponent
 import app.krafted.nightmarehorde.engine.core.components.TransformComponent
@@ -127,7 +128,10 @@ class CombatSystem(private val gameLoop: app.krafted.nightmarehorde.engine.core.
                 val resist = bossComp.bossType.multiHitResistance
                 finalDamage = (projectile.damage * (1.0f - resist)).coerceAtLeast(1.0f)
             }
-            val damageDealt = health.takeDamage(finalDamage.toInt())
+            // Player takes armor-reduced damage (matches ZombieDamageSystem); enemies take raw damage.
+            val isPlayer = targetEntity.hasComponent(PlayerTagComponent::class)
+            val armor = if (isPlayer) targetEntity.getComponent(StatsComponent::class)?.armor ?: 0 else 0
+            val damageDealt = health.takeDamage(finalDamage.toInt(), armor)
 
             // Spawn Damage Popup + Hit Particles
             val targetTransform = targetEntity.getComponent(TransformComponent::class)
@@ -151,7 +155,11 @@ class CombatSystem(private val gameLoop: app.krafted.nightmarehorde.engine.core.
                 onBossMeleeHit?.invoke(targetEntity)
             }
 
-            if (!health.isAlive) {
+            // Only enemies are killed here. The player is exempt: PlayerSystem owns its
+            // death/revival check, so dropping it to 0 HP must NOT remove it from the loop.
+            // Doing so would skip Second Wind, never fire onPlayerDeath, and corrupt the
+            // kill count/loot — soft-locking the game with no game-over screen.
+            if (!isPlayer && !health.isAlive) {
                 onEnemyDeath?.invoke(targetEntity)
                 targetEntity.isActive = false
             }

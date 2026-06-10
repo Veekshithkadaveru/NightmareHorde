@@ -58,9 +58,7 @@ class DamageNumberRenderer @Inject constructor() {
 
             if (popup != null && transform != null) {
                 // Simple culling
-                if (transform.x < visibleBounds.left || transform.x > visibleBounds.right ||
-                    transform.y < visibleBounds.top || transform.y > visibleBounds.bottom
-                ) return@forEach
+                if (!visibleBounds.contains(transform.x, transform.y)) return@forEach
 
                 var screenX = 0f
                 var screenY = 0f

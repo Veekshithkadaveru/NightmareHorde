@@ -4,14 +4,11 @@ import app.krafted.nightmarehorde.engine.core.Entity
 import app.krafted.nightmarehorde.engine.core.GameSystem
 import app.krafted.nightmarehorde.engine.core.components.AIBehavior
 import app.krafted.nightmarehorde.engine.core.components.AIComponent
-import app.krafted.nightmarehorde.engine.core.components.ColliderComponent
-import app.krafted.nightmarehorde.engine.core.components.CollisionLayer
 import app.krafted.nightmarehorde.engine.core.components.HealthComponent
-import app.krafted.nightmarehorde.engine.core.components.ProjectileComponent
 import app.krafted.nightmarehorde.engine.core.components.StatsComponent
 import app.krafted.nightmarehorde.engine.core.components.TransformComponent
 import app.krafted.nightmarehorde.engine.core.components.VelocityComponent
-import app.krafted.nightmarehorde.engine.physics.Collider
+import app.krafted.nightmarehorde.game.entities.EnemyProjectileEntity
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.sqrt
@@ -147,32 +144,9 @@ class AISystem @Inject constructor() : GameSystem(priority = 18) {
                 health.setHealth(0)
                 entity.isActive = false
 
-                // Apply AOE damage to player if in explosion radius
-                applyExplosionDamage(transform, stats, player, EXPLOSION_RADIUS)
-
-                // Spawn explosion particle effect
+                applyRadialDamageToPlayer(transform.x, transform.y, stats.baseDamage, EXPLOSION_RADIUS, player)
                 spawnExplosionEffect(transform.x, transform.y)
             }
-        }
-    }
-
-    private fun applyExplosionDamage(
-        explosionTransform: TransformComponent,
-        stats: StatsComponent,
-        player: Entity,
-        radius: Float
-    ) {
-        val playerTransform = player.getComponent(TransformComponent::class) ?: return
-        val playerHealth = player.getComponent(HealthComponent::class) ?: return
-        val playerStats = player.getComponent(StatsComponent::class)
-
-        val dx = playerTransform.x - explosionTransform.x
-        val dy = playerTransform.y - explosionTransform.y
-        val distSq = dx * dx + dy * dy
-
-        if (distSq <= radius * radius) {
-            val armor = playerStats?.armor ?: 0
-            playerHealth.takeDamage(stats.baseDamage.toInt(), armor)
         }
     }
 
@@ -238,27 +212,16 @@ class AISystem @Inject constructor() : GameSystem(priority = 18) {
         val dirX = dx / distance
         val dirY = dy / distance
 
-        val projectile = Entity().apply {
-            addComponent(TransformComponent(
-                x = ownerTransform.x + dirX * 20f,
-                y = ownerTransform.y + dirY * 20f
-            ))
-            addComponent(VelocityComponent(
-                vx = dirX * SPIT_PROJECTILE_SPEED,
-                vy = dirY * SPIT_PROJECTILE_SPEED
-            ))
-            addComponent(ColliderComponent(
-                collider = Collider.Circle(8f),
-                layer = CollisionLayer.ENEMY,
-                isTrigger = true
-            ))
-            addComponent(ProjectileComponent(
-                damage = stats.baseDamage,
-                ownerId = owner.id,
-                maxLifetime = SPIT_PROJECTILE_LIFETIME
-            ))
-        }
-        spawn(projectile)
+        spawn(EnemyProjectileEntity.create(
+            x = ownerTransform.x + dirX * 20f,
+            y = ownerTransform.y + dirY * 20f,
+            vx = dirX * SPIT_PROJECTILE_SPEED,
+            vy = dirY * SPIT_PROJECTILE_SPEED,
+            damage = stats.baseDamage,
+            ownerId = owner.id,
+            lifeTime = SPIT_PROJECTILE_LIFETIME,
+            colliderRadius = 8f
+        ))
     }
 
     private fun updateBuffBehavior(

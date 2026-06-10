@@ -23,12 +23,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.krafted.nightmarehorde.R
+import app.krafted.nightmarehorde.ui.theme.rememberGameFonts
 import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.sin
@@ -60,8 +60,9 @@ private class Ember(
 fun SplashScreen(
     onSplashFinished: () -> Unit
 ) {
-    val creepster = FontFamily(Font(R.font.creepster))
-    val blackOpsOne = FontFamily(Font(R.font.black_ops_one))
+    val fonts = rememberGameFonts()
+    val creepster = fonts.creepster
+    val blackOpsOne = fonts.blackOpsOne
 
     // Rotating gameplay tips (adapted from the baseline splash).
     val gameTips = remember {

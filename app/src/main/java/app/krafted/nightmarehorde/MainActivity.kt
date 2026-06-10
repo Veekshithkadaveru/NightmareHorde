@@ -62,7 +62,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        musicManager.release()
-        soundManager.release()
+        // These managers are @Singleton (process-scoped). Releasing on a config-change
+        // recreation would leave the reused instances with dead native resources, so
+        // only release when the Activity is actually finishing.
+        if (isFinishing) {
+            musicManager.release()
+            soundManager.release()
+        }
     }
 }

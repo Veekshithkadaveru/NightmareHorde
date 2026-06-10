@@ -91,6 +91,18 @@ class DroneManager(
     }
 
     /**
+     * Grant a new drone of [droneType], or upgrade the existing one if the player
+     * already has it. Returns true if a drone was granted or upgraded.
+     */
+    fun grantOrUpgradeDrone(droneType: DroneType, playerEntity: Entity): Boolean {
+        return if (hasDroneType(droneType)) {
+            upgradeDrone(droneType)
+        } else {
+            grantDrone(droneType, playerEntity)
+        }
+    }
+
+    /**
      * Upgrade an existing drone of the given type. Returns false if not found or already max level.
      */
     fun upgradeDrone(droneType: DroneType): Boolean {

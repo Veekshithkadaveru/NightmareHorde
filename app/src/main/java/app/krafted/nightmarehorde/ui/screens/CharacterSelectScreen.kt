@@ -1,15 +1,14 @@
 package app.krafted.nightmarehorde.ui.screens
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -23,31 +22,39 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.FilterQuality
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.krafted.nightmarehorde.R
 import app.krafted.nightmarehorde.game.data.CharacterClass
+import app.krafted.nightmarehorde.game.data.CharacterType
+import app.krafted.nightmarehorde.ui.components.AccentSection
+import app.krafted.nightmarehorde.ui.components.DeployButton
+import app.krafted.nightmarehorde.ui.components.DetailPanel
+import app.krafted.nightmarehorde.ui.components.GameButton
+import app.krafted.nightmarehorde.ui.components.InfoChip
+import app.krafted.nightmarehorde.ui.components.LockOverlay
+import app.krafted.nightmarehorde.ui.components.MenuBackdrop
+import app.krafted.nightmarehorde.ui.components.ProgressBar
+import app.krafted.nightmarehorde.ui.components.SelectableCard
+import app.krafted.nightmarehorde.ui.theme.rememberGameFonts
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Accent colors per character class */
 private val classAccentColors = mapOf(
@@ -79,40 +86,27 @@ fun CharacterSelectScreen(
     onCharacterSelected: (CharacterClass) -> Unit,
     onBack: () -> Unit
 ) {
-    val creepster = FontFamily(Font(R.font.creepster))
-    val blackOpsOne = FontFamily(Font(R.font.black_ops_one))
+    val fonts = rememberGameFonts()
+    val creepster = fonts.creepster
+    val blackOpsOne = fonts.blackOpsOne
 
     val classes = CharacterClass.entries
     var selectedIndex by remember { mutableIntStateOf(0) }
     val selectedClass = classes[selectedIndex]
     val accent = classAccentColors[selectedClass] ?: Color(0xFFFFD700)
 
-    // Entrance animation
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Background
-        Image(
-            painter = painterResource(id = R.drawable.menu_bg),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
-
-        // Dark overlay
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Black.copy(alpha = 0.7f),
-                            Color.Black.copy(alpha = 0.5f),
-                            Color.Black.copy(alpha = 0.85f)
-                        )
-                    )
+        MenuBackdrop(
+            overlay = Brush.verticalGradient(
+                colors = listOf(
+                    Color.Black.copy(alpha = 0.7f),
+                    Color.Black.copy(alpha = 0.5f),
+                    Color.Black.copy(alpha = 0.85f)
                 )
+            )
         )
 
         AnimatedVisibility(
@@ -132,7 +126,6 @@ fun CharacterSelectScreen(
                         .fillMaxHeight(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Title
                     Text(
                         text = "SELECT YOUR CLASS",
                         style = TextStyle(
@@ -149,7 +142,6 @@ fun CharacterSelectScreen(
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
 
-                    // Character cards row
                     LazyRow(
                         state = rememberLazyListState(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -170,25 +162,18 @@ fun CharacterSelectScreen(
 
                     Spacer(modifier = Modifier.weight(1f))
 
-                    // Action buttons
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         modifier = Modifier.padding(bottom = 4.dp)
                     ) {
-                        // Back button
-                        Box(
+                        GameButton(
+                            onClick = onBack,
+                            fill = Brush.verticalGradient(listOf(Color(0xFF444444), Color(0xFF1A1A1A))),
+                            borderColor = Color.Gray,
+                            shape = CutCornerShape(8.dp),
                             modifier = Modifier
                                 .height(48.dp)
                                 .widthIn(min = 120.dp)
-                                .clip(CutCornerShape(8.dp))
-                                .background(
-                                    Brush.verticalGradient(
-                                        listOf(Color(0xFF444444), Color(0xFF1A1A1A))
-                                    )
-                                )
-                                .border(2.dp, Color.Gray, CutCornerShape(8.dp))
-                                .clickable(onClick = onBack),
-                            contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = "BACK",
@@ -199,10 +184,8 @@ fun CharacterSelectScreen(
                             )
                         }
 
-                        // Deploy button
                         DeployButton(
                             isLocked = !isCharacterUnlocked(selectedClass),
-                            accent = accent,
                             blackOpsOne = blackOpsOne,
                             onClick = {
                                 if (isCharacterUnlocked(selectedClass)) {
@@ -240,141 +223,16 @@ private fun CharacterCard(
     blackOpsOne: FontFamily,
     onClick: () -> Unit
 ) {
-    val borderColor = if (isSelected) accent else Color(0xFF555555)
-    val borderWidth = if (isSelected) 3.dp else 1.5.dp
-
-    // Subtle glow animation for selected card
-    val infiniteTransition = rememberInfiniteTransition(label = "cardGlow")
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 0.7f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "glowAlpha"
-    )
-
-    Column(
-        modifier = Modifier
-            .size(width = 100.dp, height = 132.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .then(
-                if (isSelected) Modifier.border(
-                    borderWidth,
-                    accent.copy(alpha = glowAlpha),
-                    RoundedCornerShape(12.dp)
-                )
-                else Modifier.border(borderWidth, borderColor, RoundedCornerShape(12.dp))
-            )
-            .background(
-                if (isSelected)
-                    Brush.verticalGradient(
-                        listOf(accent.copy(alpha = 0.15f), Color(0xFF1A1A2E))
-                    )
-                else
-                    Brush.verticalGradient(
-                        listOf(Color(0xFF2A2A3E), Color(0xFF1A1A2E))
-                    )
-            )
-            .clickable(onClick = onClick)
-            .padding(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+    SelectableCard(
+        isSelected = isSelected,
+        accent = accent,
+        onClick = onClick,
+        modifier = Modifier.size(width = 100.dp, height = 132.dp)
     ) {
-        // Character sprite preview (idle sheet, show first frame area)
-        Box(
-            modifier = Modifier
-                .size(64.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color.Black.copy(alpha = if (isLocked) 0.6f else 0.4f)),
-            contentAlignment = Alignment.Center
-        ) {
-            // Decode sprite on background thread to avoid main thread ANR
-            val charType = characterClass.characterType
-            val context = LocalContext.current
-            var firstFrame by remember(characterClass) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
-            LaunchedEffect(characterClass) {
-                firstFrame = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    val resId = getIdleSpriteRes(characterClass)
-                    val opts = android.graphics.BitmapFactory.Options().apply {
-                        inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
-                    }
-                    val full = android.graphics.BitmapFactory.decodeResource(context.resources, resId, opts)
-                    val frame = android.graphics.Bitmap.createBitmap(
-                        full, 0, 0, charType.frameWidth, charType.frameHeight
-                    )
-                    if (frame !== full) full.recycle()
-
-                    val width = frame.width
-                    val height = frame.height
-                    val pixels = IntArray(width * height)
-                    frame.getPixels(pixels, 0, width, 0, 0, width, height)
-
-                    var minX = width
-                    var minY = height
-                    var maxX = -1
-                    var maxY = -1
-
-                    for (y in 0 until height) {
-                        for (x in 0 until width) {
-                            val alpha = (pixels[y * width + x] ushr 24) and 0xFF
-                            if (alpha > 0) {
-                                if (x < minX) minX = x
-                                if (x > maxX) maxX = x
-                                if (y < minY) minY = y
-                                if (y > maxY) maxY = y
-                            }
-                        }
-                    }
-
-                    val cropped = if (maxX >= minX && maxY >= minY) {
-                        val cropWidth = maxX - minX + 1
-                        val cropHeight = maxY - minY + 1
-                        android.graphics.Bitmap.createBitmap(frame, minX, minY, cropWidth, cropHeight)
-                    } else {
-                        frame
-                    }
-                    if (cropped !== frame) frame.recycle()
-
-                    cropped.asImageBitmap()
-                }
-            }
-            val loadedFrame = firstFrame
-            if (loadedFrame != null) {
-                Canvas(modifier = Modifier.fillMaxSize().padding(8.dp)) {
-                    val imgWidth = loadedFrame.width.toFloat()
-                    val imgHeight = loadedFrame.height.toFloat()
-
-                    val scale = minOf(size.width / imgWidth, size.height / imgHeight)
-                    val targetWidth = imgWidth * scale
-                    val targetHeight = imgHeight * scale
-
-                    val xOffset = (size.width - targetWidth) / 2f
-                    val yOffset = (size.height - targetHeight) / 2f
-
-                    drawImage(
-                        image = loadedFrame,
-                        dstOffset = IntOffset(xOffset.toInt(), yOffset.toInt()),
-                        dstSize = IntSize(targetWidth.toInt(), targetHeight.toInt()),
-                        filterQuality = FilterQuality.None,
-                        colorFilter = if (isLocked) androidx.compose.ui.graphics.ColorFilter.tint(Color.DarkGray) else null
-                    )
-                }
-            }
-            
-            if (isLocked) {
-                Icon(
-                    imageVector = Icons.Default.Lock,
-                    contentDescription = "Locked",
-                    tint = Color.White.copy(alpha = 0.8f),
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-        }
+        CharacterSpritePreview(characterClass = characterClass, isLocked = isLocked)
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        // Name
         Text(
             text = characterClass.displayName.uppercase(),
             fontFamily = blackOpsOne,
@@ -386,7 +244,6 @@ private fun CharacterCard(
             overflow = TextOverflow.Ellipsis
         )
 
-        // Lock status
         if (isLocked) {
             Text(
                 text = characterClass.unlockRequirement,
@@ -401,6 +258,110 @@ private fun CharacterCard(
     }
 }
 
+/**
+ * The cropped first-frame portrait shown on a character card. The idle sheet is
+ * decoded off the main thread to avoid an ANR, then scaled to fit the tile.
+ */
+@Composable
+private fun CharacterSpritePreview(characterClass: CharacterClass, isLocked: Boolean) {
+    Box(
+        modifier = Modifier
+            .size(64.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.Black.copy(alpha = if (isLocked) 0.6f else 0.4f)),
+        contentAlignment = Alignment.Center
+    ) {
+        val charType = characterClass.characterType
+        val context = LocalContext.current
+        var firstFrame by remember(characterClass) { mutableStateOf<ImageBitmap?>(null) }
+        LaunchedEffect(characterClass) {
+            firstFrame = withContext(Dispatchers.IO) {
+                decodeCroppedIdleFrame(context, characterClass, charType)
+            }
+        }
+        val loadedFrame = firstFrame
+        if (loadedFrame != null) {
+            Canvas(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+                val imgWidth = loadedFrame.width.toFloat()
+                val imgHeight = loadedFrame.height.toFloat()
+
+                val scale = minOf(size.width / imgWidth, size.height / imgHeight)
+                val targetWidth = imgWidth * scale
+                val targetHeight = imgHeight * scale
+
+                val xOffset = (size.width - targetWidth) / 2f
+                val yOffset = (size.height - targetHeight) / 2f
+
+                drawImage(
+                    image = loadedFrame,
+                    dstOffset = IntOffset(xOffset.toInt(), yOffset.toInt()),
+                    dstSize = IntSize(targetWidth.toInt(), targetHeight.toInt()),
+                    filterQuality = FilterQuality.None,
+                    colorFilter = if (isLocked) ColorFilter.tint(Color.DarkGray) else null
+                )
+            }
+        }
+
+        if (isLocked) {
+            Icon(
+                imageVector = Icons.Default.Lock,
+                contentDescription = "Locked",
+                tint = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.size(24.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Decodes the first frame of [characterClass]'s idle sheet and tightly crops the
+ * transparent padding so the portrait fills its tile. Runs blocking bitmap work,
+ * so call it off the main thread.
+ */
+private fun decodeCroppedIdleFrame(
+    context: Context,
+    characterClass: CharacterClass,
+    charType: CharacterType
+): ImageBitmap {
+    val resId = getIdleSpriteRes(characterClass)
+    val opts = BitmapFactory.Options().apply {
+        inPreferredConfig = Bitmap.Config.ARGB_8888
+    }
+    val full = BitmapFactory.decodeResource(context.resources, resId, opts)
+    val frame = Bitmap.createBitmap(full, 0, 0, charType.frameWidth, charType.frameHeight)
+    if (frame !== full) full.recycle()
+
+    val width = frame.width
+    val height = frame.height
+    val pixels = IntArray(width * height)
+    frame.getPixels(pixels, 0, width, 0, 0, width, height)
+
+    var minX = width
+    var minY = height
+    var maxX = -1
+    var maxY = -1
+    for (y in 0 until height) {
+        for (x in 0 until width) {
+            val alpha = (pixels[y * width + x] ushr 24) and 0xFF
+            if (alpha > 0) {
+                if (x < minX) minX = x
+                if (x > maxX) maxX = x
+                if (y < minY) minY = y
+                if (y > maxY) maxY = y
+            }
+        }
+    }
+
+    val cropped = if (maxX >= minX && maxY >= minY) {
+        Bitmap.createBitmap(frame, minX, minY, maxX - minX + 1, maxY - minY + 1)
+    } else {
+        frame
+    }
+    if (cropped !== frame) frame.recycle()
+
+    return cropped.asImageBitmap()
+}
+
 // ─── Character Detail Panel ───────────────────────────────────────────────────
 
 @Composable
@@ -412,26 +373,7 @@ private fun CharacterDetailPanel(
     blackOpsOne: FontFamily,
     modifier: Modifier = Modifier
 ) {
-
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFF1E1E30), Color(0xFF12121E))
-                )
-            )
-            .border(
-                width = 2.dp,
-                brush = Brush.verticalGradient(
-                    listOf(accent.copy(alpha = 0.6f), accent.copy(alpha = 0.15f))
-                ),
-                shape = RoundedCornerShape(16.dp)
-            )
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Character name
+    DetailPanel(accent = accent, modifier = modifier) {
         Text(
             text = characterClass.displayName.uppercase(),
             style = TextStyle(
@@ -449,7 +391,6 @@ private fun CharacterDetailPanel(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // ─── Stats Section ───────────────────────────────────────
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -472,98 +413,25 @@ private fun CharacterDetailPanel(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // ─── Weapon Section ──────────────────────────────────────
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color.Black.copy(alpha = 0.3f))
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "WEAPON",
-                fontFamily = blackOpsOne,
-                fontSize = 10.sp,
-                letterSpacing = 2.sp,
-                color = Color.White.copy(alpha = 0.5f)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = characterClass.startingWeaponDisplayName.uppercase(),
-                fontFamily = blackOpsOne,
-                fontSize = 14.sp,
-                letterSpacing = 1.sp,
-                color = Color(0xFFFFCC00)
-            )
-        }
+        InfoChip(
+            label = "WEAPON",
+            value = characterClass.startingWeaponDisplayName.uppercase(),
+            blackOpsOne = blackOpsOne,
+            modifier = Modifier.fillMaxWidth()
+        )
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // ─── Passive Section ─────────────────────────────────────
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .background(accent.copy(alpha = 0.08f))
-                .border(1.dp, accent.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
-                .padding(12.dp)
-        ) {
-            Text(
-                text = "PASSIVE: ${characterClass.passiveName.uppercase()}",
-                fontFamily = blackOpsOne,
-                fontSize = 12.sp,
-                letterSpacing = 1.sp,
-                color = accent
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = characterClass.passiveDescription,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-                color = Color.White.copy(alpha = 0.75f)
-            )
-        }
+        AccentSection(
+            title = "PASSIVE: ${characterClass.passiveName.uppercase()}",
+            body = characterClass.passiveDescription,
+            accent = accent,
+            blackOpsOne = blackOpsOne,
+            modifier = Modifier.fillMaxWidth()
+        )
 
-        // ─── Lock overlay ────────────────────────────────────────
         if (isLocked) {
-            Spacer(modifier = Modifier.weight(1f))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xCC000000))
-                    .padding(12.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Lock,
-                            contentDescription = "Locked",
-                            tint = Color(0xFFFF6666),
-                            modifier = Modifier.size(20.dp).padding(end = 6.dp)
-                        )
-                        Text(
-                            text = "LOCKED",
-                            fontFamily = blackOpsOne,
-                            fontSize = 18.sp,
-                            letterSpacing = 3.sp,
-                            color = Color(0xFFFF6666)
-                        )
-                    }
-                    Text(
-                        text = characterClass.unlockRequirement,
-                        fontFamily = blackOpsOne,
-                        fontSize = 12.sp,
-                        color = Color.White.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-            }
+            LockOverlay(requirement = characterClass.unlockRequirement, blackOpsOne = blackOpsOne)
         }
     }
 }
@@ -591,25 +459,15 @@ private fun StatBar(
             modifier = Modifier.width(56.dp)
         )
 
-        Box(
+        ProgressBar(
+            progress = value,
+            fill = Brush.horizontalGradient(listOf(color, color.copy(alpha = 0.6f))),
+            trackColor = Color.White.copy(alpha = 0.08f),
+            cornerRadius = 4.dp,
             modifier = Modifier
                 .weight(1f)
                 .height(14.dp)
-                .clip(RoundedCornerShape(4.dp))
-                .background(Color.White.copy(alpha = 0.08f))
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(fraction = value.coerceIn(0f, 1f))
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(color, color.copy(alpha = 0.6f))
-                        )
-                    )
-            )
-        }
+        )
 
         Text(
             text = displayText,
@@ -618,63 +476,6 @@ private fun StatBar(
             color = Color.White.copy(alpha = 0.8f),
             modifier = Modifier.width(36.dp),
             textAlign = TextAlign.End
-        )
-    }
-}
-
-// ─── Deploy Button ────────────────────────────────────────────────────────────
-
-@Composable
-private fun DeployButton(
-    isLocked: Boolean,
-    accent: Color,
-    blackOpsOne: FontFamily,
-    onClick: () -> Unit
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "deployPulse")
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.04f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulse"
-    )
-
-    Box(
-        modifier = Modifier
-            .scale(if (!isLocked) pulseScale else 1f)
-            .height(48.dp)
-            .widthIn(min = 180.dp)
-            .clip(CutCornerShape(10.dp))
-            .background(
-                if (isLocked)
-                    Brush.horizontalGradient(listOf(Color(0xFF333333), Color(0xFF222222)))
-                else
-                    Brush.horizontalGradient(listOf(Color(0xFFFF3300), Color(0xFF990000)))
-            )
-            .border(
-                width = 2.dp,
-                color = if (isLocked) Color(0xFF555555) else Color(0xFFFFD700),
-                shape = CutCornerShape(10.dp)
-            )
-            .clickable(enabled = !isLocked, onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = if (isLocked) "LOCKED" else "DEPLOY",
-            fontFamily = blackOpsOne,
-            fontSize = 20.sp,
-            letterSpacing = 4.sp,
-            color = if (isLocked) Color.Gray else Color.White,
-            style = TextStyle(
-                shadow = Shadow(
-                    color = Color.Black,
-                    offset = Offset(2f, 3f),
-                    blurRadius = 4f
-                )
-            )
         )
     }
 }

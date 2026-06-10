@@ -4,20 +4,17 @@ import androidx.compose.ui.graphics.Color
 import app.krafted.nightmarehorde.engine.core.Entity
 import app.krafted.nightmarehorde.engine.core.GameSystem
 import app.krafted.nightmarehorde.engine.core.components.BossComponent
-import app.krafted.nightmarehorde.engine.core.components.ColliderComponent
-import app.krafted.nightmarehorde.engine.core.components.CollisionLayer
 import app.krafted.nightmarehorde.engine.core.components.HealthComponent
-import app.krafted.nightmarehorde.engine.core.components.ParticleComponent
-import app.krafted.nightmarehorde.engine.core.components.ProjectileComponent
 import app.krafted.nightmarehorde.engine.core.components.SpriteComponent
 import app.krafted.nightmarehorde.engine.core.components.StatsComponent
 import app.krafted.nightmarehorde.engine.core.components.TransformComponent
 import app.krafted.nightmarehorde.engine.core.components.VelocityComponent
-import app.krafted.nightmarehorde.engine.physics.Collider
 import app.krafted.nightmarehorde.game.data.BossType
 import app.krafted.nightmarehorde.game.data.ZombieType
+import app.krafted.nightmarehorde.game.entities.EnemyProjectileEntity
 import app.krafted.nightmarehorde.game.entities.HitEffectEntity
 import app.krafted.nightmarehorde.game.entities.ZombieEntity
+import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -245,7 +242,7 @@ class BossSystem : GameSystem(priority = 19) {
                 boss.isSlamming = false
                 boss.phaseCooldown = 1.5f
                 // Deal heavy AOE damage at boss position
-                applyAoeDamage(transform, stats.baseDamage * 1.5f, EXECUTIONER_SWEEP_RADIUS, player)
+                applyRadialDamageToPlayer(transform.x, transform.y, stats.baseDamage * 1.5f, EXECUTIONER_SWEEP_RADIUS, player)
                 spawnGroundSlamEffect(transform.x, transform.y, EXECUTIONER_SWEEP_RADIUS, Color(0xFFCC3333))
             }
             return
@@ -326,43 +323,23 @@ class BossSystem : GameSystem(priority = 19) {
         val dirX = dx / distance
         val dirY = dy / distance
 
-        val projectile = Entity().apply {
-            addComponent(TransformComponent(
-                x = ownerTransform.x + dirX * 30f,
-                y = ownerTransform.y + dirY * 30f,
-                scale = 2f
-            ))
-            addComponent(VelocityComponent(
-                vx = dirX * EXECUTIONER_AXE_SPEED,
-                vy = dirY * EXECUTIONER_AXE_SPEED
-            ))
-            addComponent(ColliderComponent(
-                collider = Collider.Circle(14f),
-                layer = CollisionLayer.ENEMY,
-                isTrigger = true
-            ))
-            addComponent(ProjectileComponent(
-                damage = stats.baseDamage * 0.8f, // Ranged is slightly weaker than melee sweep
-                ownerId = owner.id,
-                maxLifetime = EXECUTIONER_AXE_LIFETIME,
-                penetrating = true // Axe chops through!
-            ))
-            addComponent(SpriteComponent(
-                textureKey = "projectile_axe",
-                width = 24f,
-                height = 24f
-            ))
-            // Keep a tiny blood trail
-            addComponent(ParticleComponent(
-                color = Color(0xFFAA2222),   
-                size = 8f,
-                lifeTime = EXECUTIONER_AXE_LIFETIME,
-                fadeOut = true,
-                width = 12f,
-                height = 12f
-            ))
-        }
-        spawn(projectile)
+        spawn(EnemyProjectileEntity.create(
+            x = ownerTransform.x + dirX * 30f,
+            y = ownerTransform.y + dirY * 30f,
+            vx = dirX * EXECUTIONER_AXE_SPEED,
+            vy = dirY * EXECUTIONER_AXE_SPEED,
+            damage = stats.baseDamage * 0.8f, // Ranged is slightly weaker than melee sweep
+            ownerId = owner.id,
+            lifeTime = EXECUTIONER_AXE_LIFETIME,
+            colliderRadius = 14f,
+            scale = 2f,
+            penetrating = true, // Axe chops through!
+            spriteKey = "projectile_axe",
+            particleColor = Color(0xFFAA2222), // Tiny blood trail
+            particleSize = 8f,
+            particleWidth = 12f,
+            particleHeight = 12f
+        ))
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -413,7 +390,7 @@ class BossSystem : GameSystem(priority = 19) {
                 entity.getComponent(SpriteComponent::class)?.alpha = 1f
 
                 // Emerge AOE damage (heavy slam)
-                applyAoeDamage(transform, stats.baseDamage * 0.8f, WIDOWMAKER_DROP_AOE_RADIUS, player)
+                applyRadialDamageToPlayer(transform.x, transform.y, stats.baseDamage * 0.8f, WIDOWMAKER_DROP_AOE_RADIUS, player)
                 // Use a dark purple/black impact for the spider drop
                 spawnGroundSlamEffect(transform.x, transform.y, WIDOWMAKER_DROP_AOE_RADIUS, Color(0xFF662288))
             }
@@ -519,51 +496,25 @@ class BossSystem : GameSystem(priority = 19) {
         val distance = sqrt(dx * dx + dy * dy)
         if (distance <= 0f) return
 
-        val baseAngle = kotlin.math.atan2(dy, dx)
+        val baseAngle = atan2(dy, dx)
         val spreadRad = Math.toRadians(WIDOWMAKER_WEB_SPREAD.toDouble()).toFloat()
-        val step = spreadRad / (WIDOWMAKER_WEB_PROJECTILES - 1).coerceAtLeast(1)
-        val startAngle = baseAngle - spreadRad / 2f
 
-        for (i in 0 until WIDOWMAKER_WEB_PROJECTILES) {
-            val angle = startAngle + step * i
-            val dirX = cos(angle)
-            val dirY = sin(angle)
-
-            val projectile = Entity().apply {
-                addComponent(TransformComponent(
-                    x = ownerTransform.x + dirX * 30f,
-                    y = ownerTransform.y + dirY * 30f
-                ))
-                addComponent(VelocityComponent(
-                    vx = dirX * WIDOWMAKER_WEB_SPEED,
-                    vy = dirY * WIDOWMAKER_WEB_SPEED
-                ))
-                addComponent(ColliderComponent(
-                    collider = Collider.Circle(10f),
-                    layer = CollisionLayer.ENEMY,
-                    isTrigger = true
-                ))
-                addComponent(ProjectileComponent(
-                    damage = stats.baseDamage * 0.4f,
-                    ownerId = owner.id,
-                    maxLifetime = WIDOWMAKER_WEB_LIFETIME,
-                    // Web slows the player severely (not implemented perfectly here, but simulated via projectile hit effects elsewhere)
-                ))
-                addComponent(SpriteComponent(
-                    textureKey = "projectile_web",
-                    width = 24f,
-                    height = 24f
-                ))
-                addComponent(ParticleComponent(
-                    color = Color(0xFFEEEEEE),   // White/gray web ball
-                    size = 5f,
-                    lifeTime = WIDOWMAKER_WEB_LIFETIME,
-                    fadeOut = true,
-                    width = 8f,
-                    height = 8f
-                ))
-            }
-            spawn(projectile)
+        emitAngularSpread(WIDOWMAKER_WEB_PROJECTILES, baseAngle, spreadRad) { _, dirX, dirY ->
+            spawn(EnemyProjectileEntity.create(
+                x = ownerTransform.x + dirX * 30f,
+                y = ownerTransform.y + dirY * 30f,
+                vx = dirX * WIDOWMAKER_WEB_SPEED,
+                vy = dirY * WIDOWMAKER_WEB_SPEED,
+                damage = stats.baseDamage * 0.4f,
+                ownerId = owner.id,
+                lifeTime = WIDOWMAKER_WEB_LIFETIME,
+                colliderRadius = 10f,
+                spriteKey = "projectile_web",
+                particleColor = Color(0xFFEEEEEE), // White/gray web ball
+                particleSize = 5f,
+                particleWidth = 8f,
+                particleHeight = 8f
+            ))
         }
     }
 
@@ -701,48 +652,29 @@ class BossSystem : GameSystem(priority = 19) {
         val distance = sqrt(dx * dx + dy * dy)
         if (distance <= 0f) return
 
-        val baseAngle = kotlin.math.atan2(dy, dx)
+        val baseAngle = atan2(dy, dx)
 
-        // Spawn a fan of short-lived melee projectile segments mapped across 140 degree arc (massive arm sweep)
+        // A fan of short-lived melee segments across a 140° arc — the massive arm sweep
         val arcSpread = Math.toRadians(140.0).toFloat()
-        val step = arcSpread / (AMALGAM_SWIPE_ARC - 1).coerceAtLeast(1)
-        val startAngle = baseAngle - arcSpread / 2f
+        val dist = AMALGAM_SWIPE_RADIUS * 0.7f
+        val segmentColor = if (stats.damageMultiplier > 1f) Color(0xFFCC4422) else Color(0xFF44AA33)
 
-        for (i in 0 until AMALGAM_SWIPE_ARC) {
-            val angle = startAngle + step * i
-            val dirX = cos(angle)
-            val dirY = sin(angle)
-            val dist = AMALGAM_SWIPE_RADIUS * 0.7f
-
-            val segment = Entity().apply {
-                addComponent(TransformComponent(
-                    x = ownerTransform.x + dirX * dist,
-                    y = ownerTransform.y + dirY * dist
-                ))
-                addComponent(VelocityComponent(
-                    vx = dirX * 70f,
-                    vy = dirY * 70f
-                ))
-                addComponent(ColliderComponent(
-                    collider = Collider.Circle(18f),
-                    layer = CollisionLayer.ENEMY,
-                    isTrigger = true
-                ))
-                addComponent(ProjectileComponent(
-                    damage = stats.baseDamage * stats.damageMultiplier,
-                    ownerId = owner.id,
-                    maxLifetime = 0.35f,
-                    penetrating = true
-                ))
-                addComponent(ParticleComponent(
-                    color = if (stats.damageMultiplier > 1f) Color(0xFFCC4422) else Color(0xFF44AA33),
-                    size = 14f,
-                    lifeTime = 0.35f,
-                    width = 35f,
-                    height = 10f
-                ))
-            }
-            spawn(segment)
+        emitAngularSpread(AMALGAM_SWIPE_ARC, baseAngle, arcSpread) { _, dirX, dirY ->
+            spawn(EnemyProjectileEntity.create(
+                x = ownerTransform.x + dirX * dist,
+                y = ownerTransform.y + dirY * dist,
+                vx = dirX * 70f,
+                vy = dirY * 70f,
+                damage = stats.baseDamage * stats.damageMultiplier,
+                ownerId = owner.id,
+                lifeTime = 0.35f,
+                colliderRadius = 18f,
+                penetrating = true,
+                particleColor = segmentColor,
+                particleSize = 14f,
+                particleWidth = 35f,
+                particleHeight = 10f
+            ))
         }
     }
 
@@ -765,59 +697,27 @@ class BossSystem : GameSystem(priority = 19) {
         val distance = sqrt(dx * dx + dy * dy)
         if (distance <= 0f) return
 
-        val baseAngle = kotlin.math.atan2(dy, dx)
+        val baseAngle = atan2(dy, dx)
         val spreadRad = Math.toRadians(AMALGAM_SPIKE_SPREAD.toDouble()).toFloat()
-        val step = if (AMALGAM_SPIKE_COUNT > 1) spreadRad / (AMALGAM_SPIKE_COUNT - 1) else 0f
-        val startAngle = baseAngle - spreadRad / 2f
-
         val rubbleColor = Color(0xFFAAAAAA) // Grey concrete color
 
-        for (i in 0 until AMALGAM_SPIKE_COUNT) {
-            val angle = startAngle + step * i
-            val dirX = cos(angle)
-            val dirY = sin(angle)
-
-            // Extremely fast, heavy spread
-            val spawnOffset = 35f + i * 5f
-
-            val spike = Entity().apply {
-                addComponent(TransformComponent(
-                    x = ownerTransform.x + dirX * spawnOffset,
-                    y = ownerTransform.y + dirY * spawnOffset,
-                    scale = 1.0f
-                ))
-                addComponent(VelocityComponent(
-                    vx = dirX * AMALGAM_SPIKE_SPEED,
-                    vy = dirY * AMALGAM_SPIKE_SPEED
-                ))
-                addComponent(ColliderComponent(
-                    collider = Collider.Circle(12f), // slightly larger than splinters
-                    layer = CollisionLayer.ENEMY,
-                    isTrigger = true
-                ))
-                addComponent(ProjectileComponent(
-                    damage = stats.baseDamage * 0.6f * stats.damageMultiplier,
-                    ownerId = owner.id,
-                    maxLifetime = AMALGAM_SPIKE_LIFETIME
-                ))
-                addComponent(SpriteComponent(
-                    // "projectile_bone" works fine as a grey chunk for rubble, since it's already generated and small, 
-                    // but we can tint it dynamically grey
-                    textureKey = "projectile_bone",
-                    width = 24f,
-                    height = 24f
-                ))
-                // Heavy concrete dust trail
-                addComponent(ParticleComponent(
-                    color = Color(0xFF666666),
-                    size = 5f,
-                    lifeTime = AMALGAM_SPIKE_LIFETIME,
-                    fadeOut = true,
-                    width = 10f,
-                    height = 10f
-                ))
-            }
-            spawn(spike)
+        emitAngularSpread(AMALGAM_SPIKE_COUNT, baseAngle, spreadRad) { i, dirX, dirY ->
+            val spawnOffset = 35f + i * 5f // Stagger spawn distance for a heavy, fast spread
+            spawn(EnemyProjectileEntity.create(
+                x = ownerTransform.x + dirX * spawnOffset,
+                y = ownerTransform.y + dirY * spawnOffset,
+                vx = dirX * AMALGAM_SPIKE_SPEED,
+                vy = dirY * AMALGAM_SPIKE_SPEED,
+                damage = stats.baseDamage * 0.6f * stats.damageMultiplier,
+                ownerId = owner.id,
+                lifeTime = AMALGAM_SPIKE_LIFETIME,
+                colliderRadius = 12f, // slightly larger than splinters
+                spriteKey = "projectile_bone", // reused as a small grey rubble chunk
+                particleColor = Color(0xFF666666), // Heavy concrete dust trail
+                particleSize = 5f,
+                particleWidth = 10f,
+                particleHeight = 10f
+            ))
         }
         // Visual burst at spawn point
         spawnGroundSlamEffect(ownerTransform.x, ownerTransform.y, 50f, rubbleColor)
@@ -923,36 +823,21 @@ class BossSystem : GameSystem(priority = 19) {
             val dirX = cos(angle)
             val dirY = sin(angle)
 
-            val shockwave = Entity().apply {
-                addComponent(TransformComponent(
-                    x = transform.x + dirX * 20f,
-                    y = transform.y + dirY * 20f
-                ))
-                addComponent(VelocityComponent(
-                    vx = dirX * RETALIATION_SPEED,
-                    vy = dirY * RETALIATION_SPEED
-                ))
-                addComponent(ColliderComponent(
-                    collider = Collider.Circle(10f),
-                    layer = CollisionLayer.ENEMY,
-                    isTrigger = true
-                ))
-                addComponent(ProjectileComponent(
-                    damage = damage,
-                    ownerId = bossEntity.id,
-                    maxLifetime = RETALIATION_LIFETIME,
-                    penetrating = true
-                ))
-                addComponent(ParticleComponent(
-                    color = accentColor,
-                    size = 14f,
-                    lifeTime = RETALIATION_LIFETIME,
-                    fadeOut = true,
-                    width = 18f,
-                    height = 18f
-                ))
-            }
-            spawn(shockwave)
+            spawn(EnemyProjectileEntity.create(
+                x = transform.x + dirX * 20f,
+                y = transform.y + dirY * 20f,
+                vx = dirX * RETALIATION_SPEED,
+                vy = dirY * RETALIATION_SPEED,
+                damage = damage,
+                ownerId = bossEntity.id,
+                lifeTime = RETALIATION_LIFETIME,
+                colliderRadius = 10f,
+                penetrating = true,
+                particleColor = accentColor,
+                particleSize = 14f,
+                particleWidth = 18f,
+                particleHeight = 18f
+            ))
         }
 
         // Visual burst at boss position to signal the retaliation
@@ -977,26 +862,6 @@ class BossSystem : GameSystem(priority = 19) {
             val dirY = dy / distance
             velocity.vx = dirX * stats.moveSpeed
             velocity.vy = dirY * stats.moveSpeed
-        }
-    }
-
-    private fun applyAoeDamage(
-        center: TransformComponent,
-        damage: Float,
-        radius: Float,
-        player: Entity
-    ) {
-        val playerTransform = player.getComponent(TransformComponent::class) ?: return
-        val playerHealth = player.getComponent(HealthComponent::class) ?: return
-        val playerStats = player.getComponent(StatsComponent::class)
-
-        val dx = playerTransform.x - center.x
-        val dy = playerTransform.y - center.y
-        val distSq = dx * dx + dy * dy
-
-        if (distSq <= radius * radius) {
-            val armor = playerStats?.armor ?: 0
-            playerHealth.takeDamage(damage.toInt(), armor)
         }
     }
 

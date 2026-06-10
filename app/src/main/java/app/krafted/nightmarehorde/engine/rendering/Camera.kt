@@ -165,5 +165,15 @@ class Camera @Inject constructor() {
         fun contains(x: Float, y: Float): Boolean {
             return x in left..right && y in top..bottom
         }
+
+        /**
+         * Same as [contains] but inflates the bounds by [margin] world units on
+         * every side. Renderers use this so sprites/effects whose center sits
+         * just off-screen are still drawn while partially visible.
+         */
+        fun contains(x: Float, y: Float, margin: Float): Boolean {
+            return x >= left - margin && x <= right + margin &&
+                   y >= top - margin && y <= bottom + margin
+        }
     }
 }

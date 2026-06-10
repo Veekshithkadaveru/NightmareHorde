@@ -31,9 +31,7 @@ class DroneRenderer @Inject constructor() {
             val drone = entity.getComponent(DroneComponent::class) ?: continue
             val transform = entity.getComponent(TransformComponent::class) ?: continue
 
-            if (transform.x < visibleBounds.left - 30f || transform.x > visibleBounds.right + 30f ||
-                transform.y < visibleBounds.top - 30f || transform.y > visibleBounds.bottom + 30f
-            ) continue
+            if (!visibleBounds.contains(transform.x, transform.y, margin = 30f)) continue
 
             var screenX = 0f
             var screenY = 0f

@@ -1,14 +1,7 @@
 package app.krafted.nightmarehorde.ui.screens
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,14 +24,15 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.krafted.nightmarehorde.R
+import app.krafted.nightmarehorde.ui.components.GameButton
+import app.krafted.nightmarehorde.ui.components.rememberPulseScale
 import app.krafted.nightmarehorde.ui.navigation.GameOverStats
+import app.krafted.nightmarehorde.ui.theme.rememberGameFonts
 import kotlin.math.floor
 
 @Composable
@@ -48,8 +41,9 @@ fun GameOverScreen(
     onPlayAgain: () -> Unit,
     onMainMenu: () -> Unit
 ) {
-    val creepster = FontFamily(Font(R.font.creepster))
-    val blackOpsOne = FontFamily(Font(R.font.black_ops_one))
+    val fonts = rememberGameFonts()
+    val creepster = fonts.creepster
+    val blackOpsOne = fonts.blackOpsOne
 
     val accentRed = Color(0xFFFF3300)
     val goldAccent = Color(0xFFFFD700)
@@ -261,38 +255,22 @@ private fun GameOverPulseButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
+    val pulse = rememberPulseScale(enabled = isPrimary)
+    GameButton(
+        onClick = onClick,
+        shape = CutCornerShape(12.dp),
+        fill = Brush.horizontalGradient(
+            colors = if (isPrimary)
+                listOf(Color(0xFFFF3300), Color(0xFF990000))
+            else
+                listOf(Color(0xFF333333), Color(0xFF111111))
         ),
-        label = "pulseScale"
-    )
-
-    Box(
+        borderColor = if (isPrimary) Color(0xFFFFD700) else Color.DarkGray,
+        borderWidth = 3.dp,
+        innerScrim = Color.Black.copy(alpha = 0.2f),
         modifier = modifier
-            .scale(if (isPrimary) pulseScale else 1f)
+            .scale(if (isPrimary) pulse else 1f)
             .height(56.dp)
-            .clip(CutCornerShape(12.dp))
-            .background(
-                Brush.horizontalGradient(
-                    colors = if (isPrimary)
-                        listOf(Color(0xFFFF3300), Color(0xFF990000))
-                    else
-                        listOf(Color(0xFF333333), Color(0xFF111111))
-                )
-            )
-            .border(
-                width = 3.dp,
-                color = if (isPrimary) Color(0xFFFFD700) else Color.DarkGray,
-                shape = CutCornerShape(12.dp)
-            )
-            .background(Color.Black.copy(alpha = 0.2f))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
@@ -319,23 +297,12 @@ private fun GameOverMenuButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    Box(
-        modifier = modifier
-            .height(56.dp)
-            .clip(CutCornerShape(8.dp))
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFF444444), Color(0xFF1A1A1A))
-                )
-            )
-            .border(
-                width = 2.dp,
-                color = Color.Gray,
-                shape = CutCornerShape(8.dp)
-            )
-            .background(Color.Black.copy(alpha = 0.3f))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
+    GameButton(
+        onClick = onClick,
+        fill = Brush.verticalGradient(listOf(Color(0xFF444444), Color(0xFF1A1A1A))),
+        borderColor = Color.Gray,
+        innerScrim = Color.Black.copy(alpha = 0.3f),
+        modifier = modifier.height(56.dp)
     ) {
         Text(
             text = text,
