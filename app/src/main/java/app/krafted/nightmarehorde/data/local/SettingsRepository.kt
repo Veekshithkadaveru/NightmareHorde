@@ -2,6 +2,7 @@ package app.krafted.nightmarehorde.data.local
 
 import android.content.Context
 import android.content.SharedPreferences
+import app.krafted.nightmarehorde.engine.input.JoystickMode
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,11 +30,16 @@ class SettingsRepository @Inject constructor(
         get() = prefs.getBoolean(KEY_PERFORMANCE_MODE, false)
         set(value) = prefs.edit().putBoolean(KEY_PERFORMANCE_MODE, value).apply()
 
+    var joystickMode: JoystickMode
+        get() = JoystickMode.fromString(prefs.getString(KEY_JOYSTICK_MODE, null))
+        set(value) = prefs.edit().putString(KEY_JOYSTICK_MODE, value.name).apply()
+
     companion object {
         private const val KEY_MUSIC_VOLUME = "music_volume"
         private const val KEY_SFX_VOLUME = "sfx_volume"
         private const val KEY_SHOW_FPS = "show_fps"
         private const val KEY_SCREEN_SHAKE = "screen_shake"
         private const val KEY_PERFORMANCE_MODE = "performance_mode"
+        private const val KEY_JOYSTICK_MODE = "joystick_mode"
     }
 }

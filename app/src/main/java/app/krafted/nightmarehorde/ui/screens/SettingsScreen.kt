@@ -2,6 +2,7 @@ package app.krafted.nightmarehorde.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CutCornerShape
@@ -17,11 +18,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.krafted.nightmarehorde.data.local.SettingsRepository
 import app.krafted.nightmarehorde.engine.audio.MusicManager
 import app.krafted.nightmarehorde.engine.audio.SoundManager
+import app.krafted.nightmarehorde.engine.input.JoystickMode
 import app.krafted.nightmarehorde.ui.components.BackButton
 import app.krafted.nightmarehorde.ui.components.DarkMenuBackground
 import app.krafted.nightmarehorde.ui.theme.rememberGameFonts
@@ -42,6 +45,7 @@ fun SettingsScreen(
     var showFps by remember { mutableStateOf(settingsRepository.showFps) }
     var screenShake by remember { mutableStateOf(settingsRepository.screenShake) }
     var performanceMode by remember { mutableStateOf(settingsRepository.performanceMode) }
+    var joystickMode by remember { mutableStateOf(settingsRepository.joystickMode) }
 
     Box(
         modifier = Modifier
@@ -118,6 +122,18 @@ fun SettingsScreen(
                 label = "SCREEN SHAKE",
                 checked = screenShake,
                 onCheckedChange = { screenShake = it; settingsRepository.screenShake = it },
+                blackOpsOne = blackOpsOne
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            SettingsOptionRow(
+                label = "JOYSTICK",
+                subLabel = "Floating: joystick appears where you touch",
+                options = JoystickMode.entries,
+                optionLabel = { it.displayName },
+                selected = joystickMode,
+                onSelected = { joystickMode = it; settingsRepository.joystickMode = it },
                 blackOpsOne = blackOpsOne
             )
 
@@ -241,6 +257,70 @@ private fun SettingsToggleRow(
                     uncheckedTrackColor = Color(0xFF333333)
                 )
             )
+        }
+    }
+}
+
+@Composable
+private fun <T> SettingsOptionRow(
+    label: String,
+    options: List<T>,
+    optionLabel: (T) -> String,
+    selected: T,
+    onSelected: (T) -> Unit,
+    blackOpsOne: FontFamily,
+    subLabel: String? = null
+) {
+    SettingsCard {
+        Column {
+            Text(
+                text = label,
+                fontFamily = blackOpsOne,
+                fontSize = 16.sp,
+                color = Color.White,
+                letterSpacing = 2.sp
+            )
+            if (subLabel != null) {
+                Text(
+                    text = subLabel,
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                options.forEach { option ->
+                    val isSelected = option == selected
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(CutCornerShape(8.dp))
+                            .background(if (isSelected) Color(0xFFFF3300) else Color(0xFF333333))
+                            .border(
+                                1.dp,
+                                if (isSelected) Color(0xFFFFD700) else Color(0xFF4A1A1A),
+                                CutCornerShape(8.dp)
+                            )
+                            .clickable { onSelected(option) }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = optionLabel(option),
+                            fontFamily = blackOpsOne,
+                            fontSize = 14.sp,
+                            color = if (isSelected) Color.White else Color.Gray,
+                            letterSpacing = 1.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
         }
     }
 }

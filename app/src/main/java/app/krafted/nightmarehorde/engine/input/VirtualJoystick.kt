@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -79,30 +80,7 @@ fun VirtualJoystick(
             modifier = Modifier.size(outerRadius * 2)
         ) {
             val center = Offset(size.width / 2, size.height / 2)
-            
-            // Outer ring (stroke)
-            drawCircle(
-                color = outerColor.copy(alpha = if (isDragging) outerAlpha * 1.5f else outerAlpha),
-                radius = outerRadiusPx,
-                center = center,
-                style = Stroke(width = 3.dp.toPx())
-            )
-            
-            // Outer fill (very subtle)
-            drawCircle(
-                color = outerColor.copy(alpha = outerAlpha * 0.2f),
-                radius = outerRadiusPx,
-                center = center
-            )
-            
-            // Dead zone indicator (subtle inner ring)
-            val deadZoneRadius = outerRadiusPx * deadZone
-            drawCircle(
-                color = outerColor.copy(alpha = outerAlpha * 0.15f),
-                radius = deadZoneRadius,
-                center = center,
-                style = Stroke(width = 1.dp.toPx())
-            )
+            drawJoystickBase(center, outerRadiusPx, deadZone, outerColor, outerAlpha, active = isDragging)
         }
         
         // Inner knob
@@ -128,61 +106,15 @@ fun VirtualJoystick(
                         onDrag = { change, dragAmount ->
                             change.consume()
 
-                            // Calculate new potential offset
-                            val newOffset = knobOffset + dragAmount
-                            val distance = sqrt(newOffset.x * newOffset.x + newOffset.y * newOffset.y)
                             val maxDistance = outerRadiusPx - innerRadiusPx
-
-                            // Clamp to within outer ring bounds
-                            knobOffset = if (distance > maxDistance) {
-                                val angle = atan2(newOffset.y, newOffset.x)
-                                Offset(
-                                    cos(angle) * maxDistance,
-                                    sin(angle) * maxDistance
-                                )
-                            } else {
-                                newOffset
-                            }
-
-                            // Use the CLAMPED knob position for direction and magnitude
-                            // This prevents the pre-clamp distance from producing
-                            // inconsistent magnitude/direction values during fast spins
-                            val clampedDist = sqrt(knobOffset.x * knobOffset.x + knobOffset.y * knobOffset.y)
-                            val normalizedMagnitude = (clampedDist / maxDistance).coerceIn(0f, 1f)
-
-                            // Apply dead zone - only emit if outside dead zone
-                            if (normalizedMagnitude > deadZone) {
-                                // Remap from [deadZone, 1] to [0, 1] for smooth response
-                                val remappedMagnitude = (normalizedMagnitude - deadZone) / (1f - deadZone)
-                                val angle = atan2(knobOffset.y, knobOffset.x)
-
-                                val normalizedX = cos(angle) * remappedMagnitude
-                                val normalizedY = sin(angle) * remappedMagnitude
-
-                                onDirectionChange(Vector2(normalizedX, normalizedY))
-                            } else {
-                                // Inside dead zone - no movement
-                                onDirectionChange(Vector2.ZERO)
-                            }
+                            knobOffset = clampToRadius(knobOffset + dragAmount, maxDistance)
+                            onDirectionChange(computeJoystickDirection(knobOffset, maxDistance, deadZone))
                         }
                     )
                 }
         ) {
             val center = Offset(size.width / 2, size.height / 2)
-            
-            // Inner knob fill
-            drawCircle(
-                color = innerColor.copy(alpha = if (isDragging) innerAlpha * 1.3f else innerAlpha),
-                radius = innerRadiusPx,
-                center = center
-            )
-            
-            // Inner knob highlight
-            drawCircle(
-                color = Color.White.copy(alpha = 0.3f),
-                radius = innerRadiusPx * 0.6f,
-                center = Offset(center.x - innerRadiusPx * 0.1f, center.y - innerRadiusPx * 0.1f)
-            )
+            drawJoystickKnob(center, innerRadiusPx, innerColor, innerAlpha, active = isDragging)
         }
     }
 }
@@ -216,6 +148,83 @@ fun VirtualJoystick(
         outerRadius = outerRadius,
         innerRadius = innerRadius,
         deadZone = deadZone
+    )
+}
+
+/** Clamps [offset] to lie within [maxDistance] of the origin, preserving its direction. */
+internal fun clampToRadius(offset: Offset, maxDistance: Float): Offset {
+    val distance = sqrt(offset.x * offset.x + offset.y * offset.y)
+    return if (distance > maxDistance) {
+        val angle = atan2(offset.y, offset.x)
+        Offset(cos(angle) * maxDistance, sin(angle) * maxDistance)
+    } else {
+        offset
+    }
+}
+
+/**
+ * Converts a clamped knob offset into a normalized direction vector, applying the dead
+ * zone and remapping magnitude from `[deadZone, 1]` to `[0, 1]` for a smooth response.
+ */
+internal fun computeJoystickDirection(
+    knobOffset: Offset,
+    maxDistance: Float,
+    deadZone: Float
+): Vector2 {
+    val distance = sqrt(knobOffset.x * knobOffset.x + knobOffset.y * knobOffset.y)
+    val normalizedMagnitude = (distance / maxDistance).coerceIn(0f, 1f)
+    if (normalizedMagnitude <= deadZone) return Vector2.ZERO
+
+    val remappedMagnitude = (normalizedMagnitude - deadZone) / (1f - deadZone)
+    val angle = atan2(knobOffset.y, knobOffset.x)
+    return Vector2(cos(angle) * remappedMagnitude, sin(angle) * remappedMagnitude)
+}
+
+/** Draws the joystick base: outer ring stroke, subtle fill, and dead-zone indicator ring. */
+internal fun DrawScope.drawJoystickBase(
+    center: Offset,
+    outerRadiusPx: Float,
+    deadZone: Float,
+    color: Color,
+    alpha: Float,
+    active: Boolean
+) {
+    drawCircle(
+        color = color.copy(alpha = if (active) alpha * 1.5f else alpha),
+        radius = outerRadiusPx,
+        center = center,
+        style = Stroke(width = 3.dp.toPx())
+    )
+    drawCircle(
+        color = color.copy(alpha = alpha * 0.2f),
+        radius = outerRadiusPx,
+        center = center
+    )
+    drawCircle(
+        color = color.copy(alpha = alpha * 0.15f),
+        radius = outerRadiusPx * deadZone,
+        center = center,
+        style = Stroke(width = 1.dp.toPx())
+    )
+}
+
+/** Draws the joystick knob: filled disc plus an off-centre highlight. */
+internal fun DrawScope.drawJoystickKnob(
+    center: Offset,
+    innerRadiusPx: Float,
+    color: Color,
+    alpha: Float,
+    active: Boolean
+) {
+    drawCircle(
+        color = color.copy(alpha = if (active) alpha * 1.3f else alpha),
+        radius = innerRadiusPx,
+        center = center
+    )
+    drawCircle(
+        color = Color.White.copy(alpha = 0.3f),
+        radius = innerRadiusPx * 0.6f,
+        center = Offset(center.x - innerRadiusPx * 0.1f, center.y - innerRadiusPx * 0.1f)
     )
 }
 

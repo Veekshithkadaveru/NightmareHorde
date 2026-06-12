@@ -19,8 +19,10 @@ import app.krafted.nightmarehorde.engine.core.components.TransformComponent
 import app.krafted.nightmarehorde.engine.core.components.WeaponInventoryComponent
 import app.krafted.nightmarehorde.engine.core.components.XPComponent
 import app.krafted.nightmarehorde.R
+import app.krafted.nightmarehorde.data.local.SettingsRepository
 import app.krafted.nightmarehorde.engine.audio.SoundManager
 import app.krafted.nightmarehorde.engine.input.InputManager
+import app.krafted.nightmarehorde.engine.input.JoystickMode
 import app.krafted.nightmarehorde.engine.physics.CollisionResponseSystem
 import app.krafted.nightmarehorde.engine.physics.CollisionSystem
 import app.krafted.nightmarehorde.engine.physics.MovementSystem
@@ -105,7 +107,11 @@ class GameViewModel @Inject constructor(
     val droneRenderer: DroneRenderer,
     private val suppliesManager: SuppliesManager,
     private val soundManager: SoundManager,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
+
+    val joystickMode: JoystickMode
+        get() = settingsRepository.joystickMode
 
     // Firebase Analytics Instance
     private val analytics = FirebaseAnalytics.getInstance(context)

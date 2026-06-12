@@ -37,9 +37,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import app.krafted.nightmarehorde.ui.navigation.GameOverStats
+import app.krafted.nightmarehorde.engine.input.FloatingJoystickOverlay
 import app.krafted.nightmarehorde.engine.input.GestureHandler
+import app.krafted.nightmarehorde.engine.input.JoystickMode
 import app.krafted.nightmarehorde.engine.input.VirtualJoystick
 import app.krafted.nightmarehorde.engine.input.detectGameGestures
+import app.krafted.nightmarehorde.engine.input.floatingJoystick
+import app.krafted.nightmarehorde.engine.input.rememberFloatingJoystickState
 import app.krafted.nightmarehorde.engine.rendering.GameSurface
 import app.krafted.nightmarehorde.game.data.CharacterClass
 import app.krafted.nightmarehorde.game.data.CharacterType
@@ -87,6 +91,9 @@ fun GameScreen(
     val gestureHandler = remember(viewModel.inputManager, scope) {
         GestureHandler(viewModel.inputManager, scope)
     }
+
+    val joystickMode = remember { viewModel.joystickMode }
+    val floatingJoystickState = rememberFloatingJoystickState()
 
     // Auto-dismiss weapon unlock notification after 2 seconds
     var showUnlockBanner by remember { mutableStateOf(false) }
@@ -144,7 +151,15 @@ fun GameScreen(
             particleRenderer = viewModel.particleRenderer,
             droneRenderer = viewModel.droneRenderer,
             backgroundColor = Color(mapType.backgroundColor),
-            modifier = Modifier.detectGameGestures(gestureHandler, scope)
+            modifier = Modifier
+                .detectGameGestures(gestureHandler, scope)
+                .then(
+                    if (joystickMode == JoystickMode.FLOATING) {
+                        Modifier.floatingJoystick(floatingJoystickState, viewModel.inputManager)
+                    } else {
+                        Modifier
+                    }
+                )
         )
 
         // Day/Night lighting overlay — only composed when there is a tint to draw.
@@ -160,6 +175,10 @@ fun GameScreen(
                     overlayAlpha = dayNight.overlayAlpha
                 )
             }
+        }
+
+        if (joystickMode == JoystickMode.FLOATING) {
+            FloatingJoystickOverlay(state = floatingJoystickState)
         }
 
         // HUD overlay — Health Bar (top-left)
@@ -280,12 +299,17 @@ fun GameScreen(
                 .padding(bottom = 80.dp)
         )
 
-        VirtualJoystick(
-            inputManager = viewModel.inputManager,
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(24.dp)
-        )
+        if (joystickMode != JoystickMode.FLOATING) {
+            VirtualJoystick(
+                inputManager = viewModel.inputManager,
+                modifier = Modifier
+                    .align(
+                        if (joystickMode == JoystickMode.FIXED_LEFT) Alignment.BottomStart
+                        else Alignment.BottomEnd
+                    )
+                    .padding(24.dp)
+            )
+        }
 
         LevelUpScreen(
             isVisible = levelUpState.isShowing,
